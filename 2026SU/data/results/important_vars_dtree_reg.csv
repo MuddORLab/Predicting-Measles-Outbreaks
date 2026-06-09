@@ -1,0 +1,13 @@
+"","Variable","Importance"
+"1","population",0.311459498806312
+"2","any_cancer_no",0.224156484545525
+"3","any_cancer_yes",0.224156484545525
+"4","bmi_4_categories_recommended_range",0.224156484545525
+"5","bmi_5_categories_recommended_range",0.224156484545525
+"6","current_e_cig_user_no",0.224156484545525
+"7","mammogram_past_2_yrs_50_ia_no",0.224156484545525
+"8","pct_black",0.0593256188202498
+"9","pct_college",0.0444942141151873
+"10","pct_hispanic",0.0296628094101249
+"11","pct_white",0.0296628094101249
+"12","pct_poverty",0.0148314047050624
