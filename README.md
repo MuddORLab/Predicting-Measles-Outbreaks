@@ -20,3 +20,94 @@ Social media posts from Bluesk and Twitter (X) are used in the sentiment analysi
 # Goal
 
 With the results of the sentiment and statistical analysis, we are hoping that this can inform public policy in a way that can decrease these measles outbreaks.
+
+# Quick Start
+Visual Studio Code was primarily used and the following instructions are based on the use of VS Code
+
+### Prerequisites
+ - Python extension by Microsoft
+ - Jupyter extension by Microsoft
+ - R extension for VS Code by REditorSupport
+
+### Installation
+
+1. **Clone Git Repository**
+   ```bash
+   git clone <repo url>
+   ```
+2. **Installing libraries**
+
+   Here's a list of R packages one must have to ensure the jupyter notebooks run:
+
+   - readr
+   - rsample
+   - rpart
+   - dplyr
+   - rpart.plot
+   - ipred
+   - caret
+   - smotefamily
+   - janitor
+   - tidyverse
+   - xgboost
+   - rPref
+   - ggplot2
+   - igraph
+   - plotly
+   - randomForest
+   - stringr
+   - cluster
+   - factoextra
+
+   ```bash
+   R
+   install.packages("package name")
+
+# Data Sets
+
+We have created datasets with the following data: 
+- Behavioral Risk Factor Surveilliance System (BRFSS)
+- CDC Social Vulnerability Index (SVI)
+- Texas Census 2025
+- American Community Survey: Conscientious Vaccine Exemption Rate (CVE), school enrollment, population, Public Health Region (PHR) division, demographic, and socioeconomic factors; we consider this basedata
+
+Here are the dataset names and the data contained in them:
+- merged_data: BRFSS, Census, basedata
+- merged_with_svi: BRFSS, Census, basedata SVI
+
+# Notebook Descriptions
+The following are descriptions of the notebooks in the folder titled 2026SU, which contains the most recent work
+
+### CART_on_raw_data.ipynb
+Classification Model, specifically XGBoost model, that uses data that contain NA's
+
+Datasets: merged_data and merged_with_svi
+
+### classification_tree.ipynb
+Contains three classification models: Decision Tree, RandomForest, and XGBoost. The data sets don't contain NAs.
+
+Datasets: merged_data and merged_with_svi
+
+### glm.ipynb
+
+Predicitve General Linear Model (GLM)
+
+Datasets: merged_data and merged_with_svi
+
+### logistic_regression.ipynb
+
+Logistic regression model - linear model
+
+Datasets: merged_data
+
+### regression_tree.ipynb
+
+Regression tree - Basic Regression tree model, Regression Random forest model, Regression XGBoost model
+
+Uses both IRkernel and python kernel
+
+Datasets: merged_data and merged_with_svi
+
+# Tech Stack
+- R
+- Python
