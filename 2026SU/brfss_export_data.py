@@ -8,7 +8,7 @@ from openpyxl import load_workbook
 import pandas as pd
 from playwright.sync_api import sync_playwright, TimeoutError
 
-# ── CONFIGURATION ─────────────────────────────────────────────────────────────
+# CONFIGURATION 
 URL = "https://tabexternal.dshs.texas.gov/t/THD/views/BRFSSRedesignDraft/BRFSS"
 
 DASHBOARD       = "Data Table Builder 2011+"
@@ -22,13 +22,18 @@ AREAS = [
     "Public Health Region 11",
 ]
 
+# DSHS 2014 PHR BRFSS summary workbook; any PHR copy works — sheet names are the feature labels.
+# Expected location: ~/Downloads/ (temporary; move to data/raw/brfss/ for reproducibility)
 FEATURE_FILE = Path("/Users/sean/Downloads/2014_PHR2_BRFSS_Summary_Tables.xlsx")
 
+# DSHS 2024 PHR BRFSS summary workbook; used only to normalize feature names to current terminology.
+# Expected location: data/raw/brfss/
 FEATURE_NAME_FILE = Path(
     "/Users/sean/Summer 2026 Research/Measles-Outbreak-and-Public-Policy-Reluctance/"
     "2026SU/data/raw/brfss/2024_PHR8_BRFSS_Summary_Tables.xlsx"
 )
 
+# When True, rows whose topic/question can't be matched to the 2024 naming workbook are dropped.
 ONLY_USE_TARGET_FEATURE_NAMES = True
 
 # The "Select Area" dropdown only lists regions that have data for the CURRENTLY
@@ -43,9 +48,12 @@ ANCHOR_TOPIC = "Adult Immunizations"
 MAX_TOPICS              = None
 MAX_QUESTIONS_PER_TOPIC = None
 
+# Scraped output CSV; one row per feature/area/question combination.
+# Expected location: data/brfss_export_data/
 OUTPUT_CSV = Path("/Users/sean/Documents/Codex/2026-06-11/i-need-to-scrape-all-the/brfss_2014_phr_1_8_11_target_variables.csv")
-# ─────────────────────────────────────────────────────────────────────────────
 
+
+# Words that appear in almost every health topic name and carry no discriminating signal.
 MATCH_STOP_WORDS = {
     "a", "an", "and", "any", "are", "by", "do", "for", "had", "has", "have",
     "in", "is", "of", "on", "or", "the", "to", "with", "you", "your",
@@ -58,12 +66,17 @@ MATCH_STOP_WORDS = {
 
 
 def clean_feature_text(value):
+    # Excel cells sometimes start with "Questionnaire:" or "Calculated Variable:"
+    # as a label prefix; strip it so only the meaningful description remains.
     value = "" if value is None or pd.isna(value) else str(value)
     value = re.sub(r"^(questionnaire|calculated variable):\s*", "", value, flags=re.I)
     return value.strip()
 
 
 def normalize_for_match(value):
+    # Flatten surface-level variation before comparing: & and + are written both
+    # ways across the dashboard and workbook; "yrs" and "year" refer to the same
+    # thing; punctuation adds noise without meaning.
     value = clean_feature_text(value).lower()
     value = value.replace("&", " and ")
     value = value.replace("+", " plus ")
@@ -74,6 +87,9 @@ def normalize_for_match(value):
 
 
 def match_score(left, right):
+    # Blended score: word-overlap ratio weighted heavier (0.7) than character
+    # sequence similarity (0.3) because health topic names share key nouns
+    # regardless of word order or surrounding filler.
     left = normalize_for_match(left)
     right = normalize_for_match(right)
 
@@ -88,6 +104,8 @@ def match_score(left, right):
 
 
 def important_words(value):
+    # Length >= 3 drops single-letter tokens and two-letter abbreviations that
+    # slip past the stop-word list but still carry no discriminating signal.
     return {
         word
         for word in normalize_for_match(value).split()
@@ -96,6 +114,8 @@ def important_words(value):
 
 
 def has_shared_important_word(left_texts, right_texts):
+    # Cheap pre-filter: if two descriptions share no important word at all,
+    # skip the more expensive match_score computation entirely.
     left_words = set()
     right_words = set()
 
@@ -113,10 +133,13 @@ def load_features_from_workbook(workbook_path):
     features = []
 
     for sheet_name in workbook.sheetnames:
+        # Skip navigation-only sheets that don't correspond to a health feature.
         if sheet_name.lower() in ["contents", "index"]:
             continue
 
         sheet = workbook[sheet_name]
+        # A3 and A5 typically hold the long question description and variable
+        # label in DSHS summary workbooks — more text gives the matcher more signal.
         features.append({
             "feature": sheet_name,
             "search_texts": [
@@ -148,6 +171,8 @@ def find_best_feature_match(search_texts, features, minimum_score):
             best_feature = feature
             best_score = score
 
+    # Reject weak matches — a score below the threshold means the best candidate
+    # still isn't similar enough to trust as the same feature.
     if best_score < minimum_score:
         return None
 
@@ -155,8 +180,11 @@ def find_best_feature_match(search_texts, features, minimum_score):
 
 
 def load_feature_list():
+    # Source workbook: 2014 data whose sheet names are the canonical feature labels.
     source_features = load_features_from_workbook(FEATURE_FILE)
 
+    # Target workbook: 2024 naming conventions. When present, output uses its
+    # sheet names so the final CSV aligns with current DSHS terminology.
     if FEATURE_NAME_FILE.exists():
         target_features = load_features_from_workbook(FEATURE_NAME_FILE)
     else:
@@ -183,6 +211,8 @@ def load_feature_list():
 
 
 def find_matching_feature(topic, question, features):
+    # Concatenate topic + question so both the broad category and the specific
+    # wording contribute to the match — either alone can be ambiguous.
     dashboard_text = f"{topic} {question}"
     best_feature = None
     best_score = 0
@@ -204,12 +234,16 @@ def find_matching_feature(topic, question, features):
 
 
 def clean_column_name(value):
+    # Convert Tableau's display-friendly response labels (e.g. "Yes, During Pregnancy")
+    # into safe, lowercase, underscore-separated identifiers for the CSV header.
     value = str(value).lower()
     value = "".join(char if char.isalnum() else "_" for char in value)
     return "_".join(part for part in value.split("_") if part)
 
 
 def close_open_dropdowns(page):
+    # Tableau sometimes leaves a dropdown visually open after an interaction;
+    # pressing Escape closes it so subsequent clicks land on the right target.
     for _ in range(3):
         try:
             if page.get_by_role("option").first.is_visible():
@@ -279,38 +313,11 @@ def choose_dropdown_value(page, button_name, value, skip_if_selected=True):
     dropdown_button.wait_for(state="visible", timeout=15000)
     dropdown_button.scroll_into_view_if_needed()
 
-    # ── PHR-SWITCH BUG FIX ───────────────────────────────────────────────────
-    # Each of these controls is a Tableau "Inclusive" categorical filter, and
-    # the button's own text is the *currently selected value* (e.g. "2014",
-    # "Public Health Region", "Public Health Region 1"). Clicking the value that
-    # is ALREADY selected toggles it OFF, which empties the dependent
-    # "Select Area" list.
-    #
-    # On the 1st PHR this never happens because Geographic Category and Year
-    # genuinely change. But the loop re-applies the *unchanged* Geographic
-    # Category and Year at the top of every area iteration, so on the 2nd PHR
-    # that re-click deselects them — the area list collapses, the
-    # "Public Health Region 8" option never appears, and the uncaught
-    # `option_locator.wait_for(timeout=10000)` below throws and crashes the run.
-    #
-    # Skipping the click when the control already shows the target value removes
-    # the toggle (and the crash). The Question control passes
-    # skip_if_selected=False because we must always re-fire its query to capture
-    # the Tableau data response.
     if skip_if_selected and (dropdown_button.inner_text() or "").strip() == str(value).strip():
         return None
-    # ─────────────────────────────────────────────────────────────────────────
 
     option_locator = page.get_by_role("option", name=value, exact=True)
 
-    # ── ROBUST OPEN ──────────────────────────────────────────────────────────
-    # The old logic trusted `aria-expanded` and waited on the *first* option in
-    # the DOM. After a long run Tableau leaves a stale aria-expanded="true" (so
-    # the click to open was skipped) and stray hidden <option> nodes from the
-    # previous dropdown (so "first option visible" waited on something that never
-    # shows). That is what timed out when entering the 2nd PHR. Instead: close
-    # anything open, force the dropdown open, and wait for the SPECIFIC option we
-    # want — retrying the open a few times rather than trusting a single click.
     opened = False
     for _ in range(4):
         try:
@@ -330,10 +337,11 @@ def choose_dropdown_value(page, button_name, value, skip_if_selected=True):
             continue
     if not opened:
         raise RuntimeError(f"Could not open dropdown {button_name!r} to select {value!r}")
-    # ─────────────────────────────────────────────────────────────────────────
 
     response_text = None
     try:
+        # Intercept the POST that Tableau fires when a filter value changes —
+        # that response contains the updated viz data we parse into a table.
         with page.expect_response(
             lambda response: "/commands/tabdoc/" in response.url and response.request.method == "POST",
             timeout=15000
@@ -350,6 +358,8 @@ def choose_dropdown_value(page, button_name, value, skip_if_selected=True):
 
 
 def get_tableau_string_values(command_response):
+    # Tableau sends all string values in a shared dictionary to avoid repeating
+    # identical strings across columns. Rows reference values by index into this list.
     data_segments = (
         command_response["vqlCmdResponse"]["layoutStatus"]["applicationPresModel"]
         .get("dataDictionary", {})
@@ -364,6 +374,8 @@ def get_tableau_string_values(command_response):
 
 
 def get_table_zone(command_response):
+    # A Tableau dashboard response contains multiple zones (filters, titles, charts).
+    # We specifically want the zone that renders the data table worksheet.
     zones = (
         command_response["vqlCmdResponse"]["layoutStatus"]["applicationPresModel"]
         .get("workbookPresModel", {})
@@ -379,12 +391,17 @@ def get_table_zone(command_response):
 
 
 def decode_tableau_value(index, string_values):
+    # Negative indices are Tableau's "alias" references — the absolute position
+    # is the same, the sign just signals the value came from the alias dictionary.
     if index is None: return None
     position = abs(index) - 1 if index < 0 else index
     return string_values[position] if 0 <= position < len(string_values) else None
 
 
 def command_response_to_table(command_text):
+    # Reconstruct the visible crosstab from Tableau's wire format: columns list
+    # their pane/column index into a nested structure that holds the actual
+    # value-index arrays, which we decode using the shared string dictionary.
     command_response = json.loads(command_text)
     string_values    = get_tableau_string_values(command_response)
     zone             = get_table_zone(command_response)
@@ -416,6 +433,7 @@ def command_response_to_table(command_text):
             table_columns[column_name] = values
             row_count = max(row_count, len(values))
 
+    # Pad shorter columns so every column has the same length before creating the DataFrame.
     for column_name, values in list(table_columns.items()):
         if len(values) < row_count:
             table_columns[column_name] = values + [None] * (row_count - len(values))
@@ -429,6 +447,8 @@ def get_total_percent_values(command_text):
     if table.empty:
         return {}
 
+    # Filter to the aggregate "Total" row — all other demographic breakdowns
+    # (by age, sex, race, etc.) are not needed for this analysis.
     total_rows = table[
         (table["Demographic Category"] == "Total") &
         (table["Demographic Group"].isin(["total", "Total"]))
@@ -442,11 +462,13 @@ def get_total_percent_values(command_text):
         percent     = row.get("Measure Values")
         sample_size = row.get("Min. Sample Size (copy)") or row.get("Sample Size (copy)")
 
+        # Capture sample size once; it's the same for every response option in a question.
         if sample_size is not None and "sample_size" not in values:
             values["sample_size"] = sample_size
 
         if not response or percent is None: continue
 
+        # Skip confidence-interval columns — we only want the point estimate.
         if "percent" in measure and "lower" not in measure and "upper" not in measure:
             values[f"total_{clean_column_name(response)}_percent"] = percent
 
@@ -454,7 +476,7 @@ def get_total_percent_values(command_text):
 
 
 
-# ── MAIN ─────────────────────────────────────────────────────────────────────
+# MAIN
 
 rows = []
 features = load_feature_list()
@@ -565,7 +587,7 @@ with sync_playwright() as playwright:
         topics = open_dropdown(page, re.compile(r"Select Health Topic", re.I))
         if MAX_TOPICS is not None:
             topics = topics[:MAX_TOPICS]
-        # ─────────────────────────────────────────────────────────────────────
+
 
         for topic in topics:
             print(f"  Topic: {topic}", flush=True)
@@ -623,6 +645,8 @@ with sync_playwright() as playwright:
 
     browser.close()
 
+# Deduplicate in case the same feature/area/question was captured more than once
+# (can happen if a question appears under multiple topics).
 df = pd.DataFrame(rows).drop_duplicates()
 df.to_csv(OUTPUT_CSV, index=False)
-print(f"\nSaved {len(df)} rows to {OUTPUT_CSV}", flush=True)    
+print(f"\nSaved {len(df)} rows to {OUTPUT_CSV}", flush=True)
