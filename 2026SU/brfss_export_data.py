@@ -31,6 +31,15 @@ FEATURE_NAME_FILE = Path(
 
 ONLY_USE_TARGET_FEATURE_NAMES = True
 
+# The "Select Area" dropdown only lists regions that have data for the CURRENTLY
+# selected Health Topic. So before switching the Area we first select an "anchor"
+# topic that is known to have data for every target PHR — otherwise a leftover
+# restrictive topic from the previous region (e.g. "Walking For Transportation",
+# which has no PHR-level data) leaves the Area list empty and the area selection
+# crashes. "Adult Immunizations" has data for PHR 1, 8, and 11 in 2014. If you
+# change YEAR or AREAS and the area selection fails, pick a different anchor.
+ANCHOR_TOPIC = "Adult Immunizations"
+
 MAX_TOPICS              = None
 MAX_QUESTIONS_PER_TOPIC = None
 
@@ -229,35 +238,99 @@ def wait_for_tableau_ready(page):
 
 def open_dropdown(page, button_name):
     wait_for_tableau_ready(page)
-    
+
     # Target by a more resilient relative text locator combined with role
     dropdown_button = page.get_by_role("button", name=button_name).first
     dropdown_button.scroll_into_view_if_needed()
-    dropdown_button.click(force=True)
-    
-    page.get_by_role("option").first.wait_for(state="visible", timeout=7000)
-    values = page.get_by_role("option").all_inner_texts()
-    
-    page.keyboard.press("Escape")
-    page.get_by_role("option").first.wait_for(state="hidden", timeout=5000)
+
+    # Robust open with retries (same reasoning as choose_dropdown_value: don't
+    # trust a single force-click — Tableau intermittently fails to render the
+    # option list, especially after many prior interactions).
+    values = []
+    for _ in range(4):
+        try:
+            page.keyboard.press("Escape")
+        except Exception:
+            pass
+        page.wait_for_timeout(400)
+        try:
+            dropdown_button.click(force=True, timeout=15000)
+        except Exception:
+            pass
+        try:
+            page.get_by_role("option").first.wait_for(state="visible", timeout=6000)
+            values = page.get_by_role("option").all_inner_texts()
+            break
+        except TimeoutError:
+            continue
+
+    try:
+        page.keyboard.press("Escape")
+        page.get_by_role("option").first.wait_for(state="hidden", timeout=5000)
+    except Exception:
+        pass
     return [value.strip() for value in values if value.strip()]
 
 
-def choose_dropdown_value(page, button_name, value):
+def choose_dropdown_value(page, button_name, value, skip_if_selected=True):
     wait_for_tableau_ready(page)
 
     dropdown_button = page.get_by_role("button", name=button_name).first
     dropdown_button.wait_for(state="visible", timeout=15000)
     dropdown_button.scroll_into_view_if_needed()
 
-    expanded = dropdown_button.get_attribute("aria-expanded")
-    if expanded != "true":
-        dropdown_button.click(timeout=15000)
-
-    page.get_by_role("option").first.wait_for(state="visible", timeout=10000)
+    # ── PHR-SWITCH BUG FIX ───────────────────────────────────────────────────
+    # Each of these controls is a Tableau "Inclusive" categorical filter, and
+    # the button's own text is the *currently selected value* (e.g. "2014",
+    # "Public Health Region", "Public Health Region 1"). Clicking the value that
+    # is ALREADY selected toggles it OFF, which empties the dependent
+    # "Select Area" list.
+    #
+    # On the 1st PHR this never happens because Geographic Category and Year
+    # genuinely change. But the loop re-applies the *unchanged* Geographic
+    # Category and Year at the top of every area iteration, so on the 2nd PHR
+    # that re-click deselects them — the area list collapses, the
+    # "Public Health Region 8" option never appears, and the uncaught
+    # `option_locator.wait_for(timeout=10000)` below throws and crashes the run.
+    #
+    # Skipping the click when the control already shows the target value removes
+    # the toggle (and the crash). The Question control passes
+    # skip_if_selected=False because we must always re-fire its query to capture
+    # the Tableau data response.
+    if skip_if_selected and (dropdown_button.inner_text() or "").strip() == str(value).strip():
+        return None
+    # ─────────────────────────────────────────────────────────────────────────
 
     option_locator = page.get_by_role("option", name=value, exact=True)
-    option_locator.wait_for(state="visible", timeout=10000)
+
+    # ── ROBUST OPEN ──────────────────────────────────────────────────────────
+    # The old logic trusted `aria-expanded` and waited on the *first* option in
+    # the DOM. After a long run Tableau leaves a stale aria-expanded="true" (so
+    # the click to open was skipped) and stray hidden <option> nodes from the
+    # previous dropdown (so "first option visible" waited on something that never
+    # shows). That is what timed out when entering the 2nd PHR. Instead: close
+    # anything open, force the dropdown open, and wait for the SPECIFIC option we
+    # want — retrying the open a few times rather than trusting a single click.
+    opened = False
+    for _ in range(4):
+        try:
+            page.keyboard.press("Escape")
+        except Exception:
+            pass
+        page.wait_for_timeout(400)
+        try:
+            dropdown_button.click(force=True, timeout=15000)
+        except Exception:
+            pass
+        try:
+            option_locator.wait_for(state="visible", timeout=6000)
+            opened = True
+            break
+        except TimeoutError:
+            continue
+    if not opened:
+        raise RuntimeError(f"Could not open dropdown {button_name!r} to select {value!r}")
+    # ─────────────────────────────────────────────────────────────────────────
 
     response_text = None
     try:
@@ -265,6 +338,7 @@ def choose_dropdown_value(page, button_name, value):
             lambda response: "/commands/tabdoc/" in response.url and response.request.method == "POST",
             timeout=15000
         ) as response_info:
+            option_locator.scroll_into_view_if_needed()
             option_locator.click()
         response_text = response_info.value.text()
     except TimeoutError:
@@ -377,7 +451,7 @@ def get_total_percent_values(command_text):
             values[f"total_{clean_column_name(response)}_percent"] = percent
 
     return values
-    
+
 
 
 # ── MAIN ─────────────────────────────────────────────────────────────────────
@@ -388,8 +462,13 @@ features = load_feature_list()
 print(f"Loaded {len(features)} features from {FEATURE_FILE}", flush=True)
 
 with sync_playwright() as playwright:
+    # IMPORTANT: run headed. In headless Chromium, Tableau's quick-filter
+    # dropdowns (especially the cascading "Select Area" list) frequently fail to
+    # populate, which makes the PHR-8 area selection time out. A real viewport
+    # renders them reliably. Verified by hand that the headed flow selects every
+    # PHR correctly.
     browser = playwright.chromium.launch(
-        headless=True,
+        headless=False,
         args=["--disable-blink-features=AutomationControlled"],
     )
     context = browser.new_context(
@@ -401,49 +480,92 @@ with sync_playwright() as playwright:
         ),
         locale="en-US",
     )
-    page = context.new_page()
+    def open_data_table_builder():
+        """Open a FRESH page on the Data Table Builder dashboard.
 
-    print("Opening dashboard...", flush=True)
-    page.goto(URL, wait_until="domcontentloaded", timeout=60000)
-
-    nav_button = page.get_by_role("button", name=f"Navigate to '{DASHBOARD}'")
-    nav_button.wait_for(state="visible", timeout=30000)
-
-    print("Opening data table...", flush=True)
-    try:
-        with page.expect_response(lambda r: "/commands/tabdoc/" in r.url, timeout=15000):
-            nav_button.click()
-    except TimeoutError:
-        pass
-
-    wait_for_tableau_ready(page)
-
-    print("Getting topics...", flush=True)
-    topics = open_dropdown(page, re.compile(r"Select Health Topic", re.I))
-
-    if MAX_TOPICS is not None:
-        topics = topics[:MAX_TOPICS]
+        Each PHR gets its own clean page so it never inherits the previous
+        region's tangled filter state. That leftover state -- a "dead" topic with
+        no PHR data, a parenthesized/invalid area -- is what made the 2nd and 3rd
+        regions fail while the 1st (which always started clean) worked. Starting
+        fresh makes every region behave like the first one.
+        """
+        new_page = context.new_page()
+        print("Opening dashboard...", flush=True)
+        new_page.goto(URL, wait_until="domcontentloaded", timeout=60000)
+        nav_button = new_page.get_by_role("button", name=f"Navigate to '{DASHBOARD}'")
+        nav_button.wait_for(state="visible", timeout=30000)
+        print("Opening data table...", flush=True)
+        try:
+            with new_page.expect_response(lambda r: "/commands/tabdoc/" in r.url, timeout=15000):
+                nav_button.click()
+        except TimeoutError:
+            pass
+        wait_for_tableau_ready(new_page)
+        return new_page
 
     for area in AREAS:
         area_number = re.sub(r"[^\d]", "", area)
 
         print(f"\nArea: {area}", flush=True)
 
-        # Area depends on Geographic Category, so keep these adjacent.
-        choose_dropdown_value(
-            page,
-            re.compile(r"Select Geographic Category", re.I),
-            GEOGRAPHIC_CATEGORY,
-        )
+        # Fresh page per region: start from the dashboard's clean default state
+        # instead of inheriting the previous PHR's filter mess.
+        page = open_data_table_builder()
 
-        choose_dropdown_value(
-            page,
-            re.compile(r"Select Area", re.I),
-            area,
-        )
+        # ── Control ordering (this is what fixes the PHR-switch crash) ───────
+        # The dashboard's controls are interdependent:
+        #   * The "Select Area" list only contains regions that have data for
+        #     the CURRENTLY selected Health Topic. The previous PHR's loop ends
+        #     on whatever topic came last (e.g. "Walking For Transportation",
+        #     which has no PHR-level data), so the Area list is empty and the
+        #     next region can't be selected.
+        #   * Changing the Health Topic RESETS Geographic Category and Year to
+        #     their defaults whenever the current topic has no data for the
+        #     current geography. (A valid->valid topic change keeps them.)
+        #
+        # So we must establish the topic FIRST, using an anchor topic that has
+        # data for every target PHR, and only THEN layer geography -> area ->
+        # year on top of it. Selecting geography/area/year does NOT reset the
+        # topic, so the full context sticks and the Area list always contains
+        # the target PHR.
+        # The Area filter's option list repopulates ASYNCHRONOUSLY after the
+        # topic/geography change — opening it too soon catches an empty list,
+        # which is what made the PHR-8 selection fail. So we (re)establish the
+        # PHR-exposing context, wait for the cascade to settle, then select the
+        # area, retrying the whole thing if the option still isn't there yet.
+        def establish_phr_context():
+            choose_dropdown_value(page, re.compile(r"Select Health Topic", re.I), ANCHOR_TOPIC)
+            choose_dropdown_value(page, re.compile(r"Select Geographic Category", re.I), GEOGRAPHIC_CATEGORY)
+            wait_for_tableau_ready(page)
+            page.wait_for_timeout(3500)  # let the cascading Area domain repopulate
 
-        # Year can stay fixed while looping through this PHR.
+        establish_phr_context()
+        for attempt in range(3):
+            try:
+                choose_dropdown_value(page, re.compile(r"Select Area", re.I), area)
+                break
+            except RuntimeError:
+                if attempt == 2:
+                    raise
+                print(f"    Area not ready yet; re-establishing context (retry {attempt + 1})", flush=True)
+                page.wait_for_timeout(2500)
+                establish_phr_context()
+
         choose_dropdown_value(page, re.compile(r"Select Year", re.I), YEAR)
+
+        # ── Context-dependent topic-list fix ─────────────────────────────────
+        # Re-read the Health Topic options AFTER Area + Year are set. This
+        # dropdown is context-dependent: its available options change with the
+        # selected Area and Year. Reading it once up front (under the default
+        # Metro / 2023 context) and then trying to pick a topic that has no data
+        # for this PHR + 2014 makes the option wait_for() below time out and
+        # crash (e.g. "Actions to Control High Blood Pressure"). Reading it here
+        # lists only the topics that actually exist for this area + year.
+        print("  Getting topics for this area...", flush=True)
+        topics = open_dropdown(page, re.compile(r"Select Health Topic", re.I))
+        if MAX_TOPICS is not None:
+            topics = topics[:MAX_TOPICS]
+        # ─────────────────────────────────────────────────────────────────────
 
         for topic in topics:
             print(f"  Topic: {topic}", flush=True)
@@ -472,10 +594,14 @@ with sync_playwright() as playwright:
                 print(f"    Feature: {feature}", flush=True)
                 print(f"      Question: {question}", flush=True)
 
+                # Always re-fire the query for the question (skip_if_selected=False)
+                # so we capture its Tableau data response even if this question
+                # happens to already be the displayed one.
                 response_text = choose_dropdown_value(
                     page,
                     re.compile(r"(Question Asked|Description1)", re.I),
                     question,
+                    skip_if_selected=False,
                 )
 
                 if not response_text or "vqlCmdResponse" not in response_text:
@@ -492,8 +618,11 @@ with sync_playwright() as playwright:
                 row.update(total_values)
                 rows.append(row)
 
+        # Done with this region — close its tab before starting the next one.
+        page.close()
+
     browser.close()
 
 df = pd.DataFrame(rows).drop_duplicates()
 df.to_csv(OUTPUT_CSV, index=False)
-print(f"\nSaved {len(df)} rows to {OUTPUT_CSV}", flush=True)
+print(f"\nSaved {len(df)} rows to {OUTPUT_CSV}", flush=True)    
