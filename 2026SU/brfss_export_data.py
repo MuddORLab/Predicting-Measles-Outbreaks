@@ -1,14 +1,27 @@
-#!/usr/bin/env python3
+"""
+Scrape ALL Texas DSHS BRFSS health-survey percentages from a Tableau dashboard.
+
+This program automates the DSHS "Data Table Builder" Tableau dashboard to pull
+2014 BRFSS estimates for three Public Health Regions (PHR 1, 8, and 11). For
+each region it walks every available Health Topic and every Question with a
+Playwright browser, and intercepts Tableau's internal JSON responses to
+reconstruct the data table (rather than scraping rendered HTML).
+
+For each question it keeps the aggregate "Total" row (the point-estimate
+percentages plus sample size). No feature-name matching is performed -- every
+question and answer the dashboard exposes is written out, one CSV row per
+area/topic/question, with one column per answer option. Any normalization or
+mapping to canonical BRFSS variable names is left to downstream analysis.
+"""
 from pathlib import Path
-from difflib import SequenceMatcher
 import json
 import re
+import time
 
-from openpyxl import load_workbook
 import pandas as pd
 from playwright.sync_api import sync_playwright, TimeoutError
 
-# CONFIGURATION 
+# CONFIGURATION
 URL = "https://tabexternal.dshs.texas.gov/t/THD/views/BRFSSRedesignDraft/BRFSS"
 
 DASHBOARD       = "Data Table Builder 2011+"
@@ -22,20 +35,6 @@ AREAS = [
     "Public Health Region 11",
 ]
 
-# DSHS 2014 PHR BRFSS summary workbook; any PHR copy works — sheet names are the feature labels.
-# Expected location: ~/Downloads/ (temporary; move to data/raw/brfss/ for reproducibility)
-FEATURE_FILE = Path("/Users/sean/Downloads/2014_PHR2_BRFSS_Summary_Tables.xlsx")
-
-# DSHS 2024 PHR BRFSS summary workbook; used only to normalize feature names to current terminology.
-# Expected location: data/raw/brfss/
-FEATURE_NAME_FILE = Path(
-    "/Users/sean/Summer 2026 Research/Measles-Outbreak-and-Public-Policy-Reluctance/"
-    "2026SU/data/raw/brfss/2024_PHR8_BRFSS_Summary_Tables.xlsx"
-)
-
-# When True, rows whose topic/question can't be matched to the 2024 naming workbook are dropped.
-ONLY_USE_TARGET_FEATURE_NAMES = True
-
 # The "Select Area" dropdown only lists regions that have data for the CURRENTLY
 # selected Health Topic. So before switching the Area we first select an "anchor"
 # topic that is known to have data for every target PHR — otherwise a leftover
@@ -48,189 +47,11 @@ ANCHOR_TOPIC = "Adult Immunizations"
 MAX_TOPICS              = None
 MAX_QUESTIONS_PER_TOPIC = None
 
-# Scraped output CSV; one row per feature/area/question combination.
-# Expected location: data/brfss_export_data/
-OUTPUT_CSV = Path("/Users/sean/Documents/Codex/2026-06-11/i-need-to-scrape-all-the/brfss_2014_phr_1_8_11_target_variables.csv")
-
-
-# Words that appear in almost every health topic name and carry no discriminating signal.
-MATCH_STOP_WORDS = {
-    "a", "an", "and", "any", "are", "by", "do", "for", "had", "has", "have",
-    "in", "is", "of", "on", "or", "the", "to", "with", "you", "your",
-    "about", "adult", "adults", "age", "all", "asked", "been", "calculated",
-    "current", "ever", "had", "last", "month", "months", "number", "past",
-    "percent", "percentage", "questionnaire", "routine", "screening", "shot",
-    "shots", "status", "test", "tests", "told", "variable", "year", "years",
-    "yr", "yrs",
-}
-
-
-def clean_feature_text(value):
-    # Excel cells sometimes start with "Questionnaire:" or "Calculated Variable:"
-    # as a label prefix; strip it so only the meaningful description remains.
-    value = "" if value is None or pd.isna(value) else str(value)
-    value = re.sub(r"^(questionnaire|calculated variable):\s*", "", value, flags=re.I)
-    return value.strip()
-
-
-def normalize_for_match(value):
-    # Flatten surface-level variation before comparing: & and + are written both
-    # ways across the dashboard and workbook; "yrs" and "year" refer to the same
-    # thing; punctuation adds noise without meaning.
-    value = clean_feature_text(value).lower()
-    value = value.replace("&", " and ")
-    value = value.replace("+", " plus ")
-    value = re.sub(r"\byrs?\b", " year ", value)
-    value = re.sub(r"[^a-z0-9]+", " ", value)
-    value = re.sub(r"\bin the\b", " ", value)
-    return " ".join(value.split())
-
-
-def match_score(left, right):
-    # Blended score: word-overlap ratio weighted heavier (0.7) than character
-    # sequence similarity (0.3) because health topic names share key nouns
-    # regardless of word order or surrounding filler.
-    left = normalize_for_match(left)
-    right = normalize_for_match(right)
-
-    if not left or not right:
-        return 0
-
-    left_words = set(left.split())
-    right_words = set(right.split())
-    overlap = len(left_words & right_words) / max(min(len(left_words), len(right_words)), 1)
-    sequence = SequenceMatcher(None, left, right).ratio()
-    return (0.7 * overlap) + (0.3 * sequence)
-
-
-def important_words(value):
-    # Length >= 3 drops single-letter tokens and two-letter abbreviations that
-    # slip past the stop-word list but still carry no discriminating signal.
-    return {
-        word
-        for word in normalize_for_match(value).split()
-        if len(word) >= 3 and word not in MATCH_STOP_WORDS
-    }
-
-
-def has_shared_important_word(left_texts, right_texts):
-    # Cheap pre-filter: if two descriptions share no important word at all,
-    # skip the more expensive match_score computation entirely.
-    left_words = set()
-    right_words = set()
-
-    for text in left_texts:
-        left_words.update(important_words(text))
-
-    for text in right_texts:
-        right_words.update(important_words(text))
-
-    return bool(left_words & right_words)
-
-
-def load_features_from_workbook(workbook_path):
-    workbook = load_workbook(workbook_path, read_only=True, data_only=True)
-    features = []
-
-    for sheet_name in workbook.sheetnames:
-        # Skip navigation-only sheets that don't correspond to a health feature.
-        if sheet_name.lower() in ["contents", "index"]:
-            continue
-
-        sheet = workbook[sheet_name]
-        # A3 and A5 typically hold the long question description and variable
-        # label in DSHS summary workbooks — more text gives the matcher more signal.
-        features.append({
-            "feature": sheet_name,
-            "search_texts": [
-                sheet_name,
-                clean_feature_text(sheet["A3"].value),
-                clean_feature_text(sheet["A5"].value),
-            ],
-        })
-
-    workbook.close()
-    return features
-
-
-def find_best_feature_match(search_texts, features, minimum_score):
-    best_feature = None
-    best_score = 0
-
-    for feature in features:
-        if not has_shared_important_word(search_texts, feature["search_texts"]):
-            continue
-
-        score = max(
-            match_score(left, right)
-            for left in search_texts
-            for right in feature["search_texts"]
-        )
-
-        if score > best_score:
-            best_feature = feature
-            best_score = score
-
-    # Reject weak matches — a score below the threshold means the best candidate
-    # still isn't similar enough to trust as the same feature.
-    if best_score < minimum_score:
-        return None
-
-    return best_feature
-
-
-def load_feature_list():
-    # Source workbook: 2014 data whose sheet names are the canonical feature labels.
-    source_features = load_features_from_workbook(FEATURE_FILE)
-
-    # Target workbook: 2024 naming conventions. When present, output uses its
-    # sheet names so the final CSV aligns with current DSHS terminology.
-    if FEATURE_NAME_FILE.exists():
-        target_features = load_features_from_workbook(FEATURE_NAME_FILE)
-    else:
-        target_features = source_features
-
-    final_features = []
-
-    for source_feature in source_features:
-        target_feature = find_best_feature_match(
-            source_feature["search_texts"],
-            target_features,
-            minimum_score=0.62,
-        )
-
-        if target_feature is None and ONLY_USE_TARGET_FEATURE_NAMES:
-            continue
-
-        source_feature["output_feature"] = (
-            target_feature["feature"] if target_feature else source_feature["feature"]
-        )
-        final_features.append(source_feature)
-
-    return final_features
-
-
-def find_matching_feature(topic, question, features):
-    # Concatenate topic + question so both the broad category and the specific
-    # wording contribute to the match — either alone can be ambiguous.
-    dashboard_text = f"{topic} {question}"
-    best_feature = None
-    best_score = 0
-
-    for feature in features:
-        if not has_shared_important_word([dashboard_text, question], feature["search_texts"]):
-            continue
-
-        score = max(match_score(dashboard_text, text) for text in feature["search_texts"])
-
-        if score > best_score:
-            best_feature = feature["output_feature"]
-            best_score = score
-
-    if best_score < 0.62:
-        return None
-
-    return best_feature
+# Scraped output CSV; one row per area/topic/question combination.
+OUTPUT_CSV = Path(
+    "/Users/sean/Summer 2026 Research/Measles-Outbreak-and-Public-Policy-Reluctance/"
+    "2026SU/data/brfss_export_data/brfss_2014_phr_1_8_11_all_questions.csv"
+)
 
 
 def clean_column_name(value):
@@ -306,7 +127,7 @@ def open_dropdown(page, button_name):
     return [value.strip() for value in values if value.strip()]
 
 
-def choose_dropdown_value(page, button_name, value, skip_if_selected=True):
+def choose_dropdown_value(page, button_name, value, skip_if_selected=True, require_table=False):
     wait_for_tableau_ready(page)
 
     dropdown_button = page.get_by_role("button", name=button_name).first
@@ -318,42 +139,100 @@ def choose_dropdown_value(page, button_name, value, skip_if_selected=True):
 
     option_locator = page.get_by_role("option", name=value, exact=True)
 
-    opened = False
-    for _ in range(4):
-        try:
-            page.keyboard.press("Escape")
-        except Exception:
-            pass
-        page.wait_for_timeout(400)
-        try:
-            dropdown_button.click(force=True, timeout=15000)
-        except Exception:
-            pass
-        try:
-            option_locator.wait_for(state="visible", timeout=6000)
-            opened = True
-            break
-        except TimeoutError:
-            continue
-    if not opened:
-        raise RuntimeError(f"Could not open dropdown {button_name!r} to select {value!r}")
+    def open_to_option():
+        # Robust open with retries: don't trust a single force-click — Tableau
+        # intermittently fails to render the option list, especially after many
+        # prior interactions.
+        for _ in range(4):
+            try:
+                page.keyboard.press("Escape")
+            except Exception:
+                pass
+            page.wait_for_timeout(400)
+            try:
+                dropdown_button.click(force=True, timeout=15000)
+            except Exception:
+                pass
+            try:
+                option_locator.wait_for(state="visible", timeout=6000)
+                return True
+            except TimeoutError:
+                continue
+        return False
 
+    # require_table=True (used for the Question filter) means we must capture the
+    # Data Table response this selection triggers. The critical reliability point:
+    # we WAIT for that response to actually arrive — however slow — instead of
+    # capturing only what shows up during a fixed wait. After many interactions
+    # the dashboard gets sluggish and the response lands a few seconds late; a
+    # fixed wait closes the capture window too early and the row is lost. We poll
+    # the captured responses until one carries the worksheet zone, then retry the
+    # whole selection (re-opening the dropdown) if it never came.
     response_text = None
-    try:
-        # Intercept the POST that Tableau fires when a filter value changes —
-        # that response contains the updated viz data we parse into a table.
-        with page.expect_response(
-            lambda response: "/commands/tabdoc/" in response.url and response.request.method == "POST",
-            timeout=15000
-        ) as response_info:
+    attempts = 2 if require_table else 1
+
+    for attempt in range(attempts):
+        if not open_to_option():
+            raise RuntimeError(f"Could not open dropdown {button_name!r} to select {value!r}")
+
+        captured = []
+        def collect_tabdoc(response):
+            try:
+                if "/commands/tabdoc/" in response.url and response.request.method == "POST":
+                    captured.append(response)
+            except Exception:
+                pass
+
+        page.on("response", collect_tabdoc)
+        try:
             option_locator.scroll_into_view_if_needed()
             option_locator.click()
-        response_text = response_info.value.text()
-    except TimeoutError:
-        pass
 
-    close_open_dropdowns(page)
-    wait_for_tableau_ready(page)
+            if require_table:
+                deadline = time.time() + 30
+                checked = 0
+                while time.time() < deadline:
+                    # Parse only responses we haven't looked at yet.
+                    while checked < len(captured):
+                        response = captured[checked]
+                        checked += 1
+                        try:
+                            text = response.text()
+                        except Exception:
+                            continue
+                        if "vqlCmdResponse" not in text:
+                            continue
+                        try:
+                            if get_table_zone(json.loads(text)) is not None:
+                                response_text = text
+                        except Exception:
+                            continue
+                    if response_text:
+                        break
+                    page.wait_for_timeout(400)
+
+            close_open_dropdowns(page)
+            wait_for_tableau_ready(page)
+        finally:
+            page.remove_listener("response", collect_tabdoc)
+
+        # Navigation selects (topic/geography/area/year) don't need the response
+        # body — clicking the option already updated the dashboard state.
+        if not require_table or response_text:
+            break
+
+        # No Data Table response this round. Log what we did get (helps tell a
+        # genuinely data-less question apart from a dropped/slow response), settle,
+        # and retry the selection from a freshly re-opened dropdown.
+        commands = []
+        for response in captured:
+            try:
+                commands.append(response.url.split("/commands/tabdoc/")[-1].split("?")[0])
+            except Exception:
+                pass
+        print(f"      [retry {attempt + 1}] no Data Table zone in {len(captured)} response(s): {commands}", flush=True)
+        page.wait_for_timeout(2500)
+
     return response_text
 
 
@@ -371,6 +250,112 @@ def get_tableau_string_values(command_response):
             if column.get("dataType") == "cstring":
                 return column.get("dataValues", [])
     return []
+
+
+class TableauStringDict:
+    """The cumulative string dictionary for a Tableau session.
+
+    Tableau does NOT resend the full string dictionary on every filter change.
+    It ships the dictionary in numbered segments: segment 0 is a full base, and
+    higher-numbered segments are deltas appended after the current base. A single
+    filter-change response usually carries only a delta (e.g. just segment "3"),
+    whose viz value-indices are GLOBAL positions into base+deltas concatenated in
+    order — so that response cannot be decoded on its own. This was the bug behind
+    the blank rows: get_tableau_string_values read one response's lone delta
+    segment and every index missed. We instead fold every response's segments into
+    one growing dictionary and decode against the whole thing.
+    """
+
+    def __init__(self):
+        self.segments = {}
+
+    def update(self, command_response):
+        application = (
+            command_response.get("vqlCmdResponse", {})
+            .get("layoutStatus", {})
+            .get("applicationPresModel")
+        )
+        if not application:
+            return
+
+        data_segments = application.get("dataDictionary", {}).get("dataSegments", {})
+        incoming = {}
+        for key, segment in data_segments.items():
+            try:
+                index = int(key)
+            except (TypeError, ValueError):
+                continue
+            values = []
+            if segment:
+                for column in segment.get("dataColumns", []):
+                    if column.get("dataType") == "cstring":
+                        values = column.get("dataValues", [])
+                        break
+            incoming[index] = values
+
+        if not incoming:
+            return
+
+        if incoming.get(0):
+            # A non-empty segment 0 is a fresh full base — it resets the whole
+            # dictionary (later responses' deltas are relative to this new base).
+            self.segments = {index: values for index, values in incoming.items() if values}
+        else:
+            # Delta: extend the current base. An explicitly empty segment clears it.
+            for index, values in incoming.items():
+                if values:
+                    self.segments[index] = values
+                elif index in self.segments:
+                    self.segments[index] = []
+
+    def values(self):
+        flat = []
+        for index in sorted(self.segments):
+            flat.extend(self.segments[index])
+        return flat
+
+
+class SessionStringDict:
+    """Folds every `/commands/tabdoc/` response in a page session into one
+    cumulative TableauStringDict, in network arrival order.
+
+    A persistent response listener (attached in open_data_table_builder) appends
+    every tabdoc POST here; values() lazily merges any not-yet-folded responses
+    and returns the full string list to decode the current table against.
+    """
+
+    def __init__(self):
+        self._responses = []
+        self._folded = 0
+        self._dict = TableauStringDict()
+
+    def add_response(self, response):
+        try:
+            if "/commands/tabdoc/" in response.url and response.request.method == "POST":
+                self._responses.append(response)
+        except Exception:
+            pass
+
+    def values(self):
+        while self._folded < len(self._responses):
+            response = self._responses[self._folded]
+            self._responses[self._folded] = None  # release the buffered body
+            self._folded += 1
+            try:
+                text = response.text()
+            except Exception:
+                continue
+            if "vqlCmdResponse" not in text:
+                continue
+            try:
+                self._dict.update(json.loads(text))
+            except Exception:
+                continue
+        return self._dict.values()
+
+
+# Reset to a fresh instance for each region (each region uses its own page).
+SESSION = SessionStringDict()
 
 
 def get_table_zone(command_response):
@@ -398,12 +383,15 @@ def decode_tableau_value(index, string_values):
     return string_values[position] if 0 <= position < len(string_values) else None
 
 
-def command_response_to_table(command_text):
+def command_response_to_table(command_text, string_values=None):
     # Reconstruct the visible crosstab from Tableau's wire format: columns list
     # their pane/column index into a nested structure that holds the actual
     # value-index arrays, which we decode using the shared string dictionary.
+    # string_values should be the SESSION-accumulated dictionary; we fall back to
+    # this single response's dictionary only when no accumulated one is supplied.
     command_response = json.loads(command_text)
-    string_values    = get_tableau_string_values(command_response)
+    if string_values is None:
+        string_values = get_tableau_string_values(command_response)
     zone             = get_table_zone(command_response)
 
     if not string_values or not zone:
@@ -442,7 +430,9 @@ def command_response_to_table(command_text):
 
 
 def get_total_percent_values(command_text):
-    table = command_response_to_table(command_text)
+    # Decode this response's table against the SESSION-accumulated string
+    # dictionary so delta-only responses resolve correctly.
+    table = command_response_to_table(command_text, string_values=SESSION.values())
 
     if table.empty:
         return {}
@@ -474,14 +464,63 @@ def get_total_percent_values(command_text):
 
     return values
 
+# ── Incremental saving ──────────────────────────────────────────────────────
+# We save after each region so a crash (or a flaky dashboard) doesn't throw away
+# the regions already scraped, and a re-run can resume where it left off.
 
+def save_rows(rows_to_save, output_path):
+    """Merge a region's rows into OUTPUT_CSV, keeping one consistent column set.
+
+    Each question exposes a DIFFERENT set of answer-option columns, so every
+    region's DataFrame has a different column set/order. A plain append
+    (mode="a", header written once) appends by POSITION, not by name, so the
+    second region's values would be written under the first region's header and
+    silently misaligned. Instead we read whatever is already on disk and
+    pd.concat it with the new rows: concat aligns by column NAME and fills absent
+    cells with NaN, so every row stays under the correct header. With only a
+    handful of regions this full rewrite is cheap.
+
+    Returns the number of new (deduplicated) rows contributed by this call.
+    """
+    if not rows_to_save:
+        return 0
+
+    new_df = pd.DataFrame(rows_to_save).drop_duplicates()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if output_path.exists():
+        # dtype=str: don't let pandas reinterpret values (e.g. area "1" -> 1) on
+        # the round-trip; everything is written back out as text anyway.
+        existing = pd.read_csv(output_path, dtype=str)
+        combined = pd.concat([existing, new_df], ignore_index=True).drop_duplicates()
+    else:
+        combined = new_df
+
+    # Write to a temp file and atomically swap it in. If the process dies
+    # mid-write, the original file (with the earlier regions) is left intact
+    # instead of being truncated — exactly what incremental saving is meant to
+    # protect against.
+    tmp_path = output_path.with_suffix(output_path.suffix + ".tmp")
+    combined.to_csv(tmp_path, index=False)
+    tmp_path.replace(output_path)
+    return len(new_df)
+
+
+def region_already_saved(output_path, area_number):
+    """True if this region's rows are already in OUTPUT_CSV (resume support).
+
+    A region is written in a single save_rows call AFTER all of its topics, so a
+    region is either fully present or fully absent — there is no half-saved
+    region to detect. Reads only the `area` column to stay fast.
+    """
+    if not output_path.exists():
+        return False
+    existing = pd.read_csv(output_path, usecols=["area"], dtype=str)
+    return area_number in set(existing["area"])
 
 # MAIN
 
 rows = []
-features = load_feature_list()
-
-print(f"Loaded {len(features)} features from {FEATURE_FILE}", flush=True)
 
 with sync_playwright() as playwright:
     # IMPORTANT: run headed. In headless Chromium, Tableau's quick-filter
@@ -512,6 +551,9 @@ with sync_playwright() as playwright:
         fresh makes every region behave like the first one.
         """
         new_page = context.new_page()
+        # Fold every tabdoc response (navigation + filter changes) into the
+        # session string dictionary so delta-only responses can be decoded.
+        new_page.on("response", SESSION.add_response)
         print("Opening dashboard...", flush=True)
         new_page.goto(URL, wait_until="domcontentloaded", timeout=60000)
         nav_button = new_page.get_by_role("button", name=f"Navigate to '{DASHBOARD}'")
@@ -528,13 +570,20 @@ with sync_playwright() as playwright:
     for area in AREAS:
         area_number = re.sub(r"[^\d]", "", area)
 
+        #double checks if region data is already in the CSV
+        if region_already_saved(OUTPUT_CSV, area_number): 
+            print(f"\nArea: {area} — already in {OUTPUT_CSV.name}, skipping", flush=True) 
+            continue
+
         print(f"\nArea: {area}", flush=True)
 
         # Fresh page per region: start from the dashboard's clean default state
-        # instead of inheriting the previous PHR's filter mess.
+        # instead of inheriting the previous PHR's filter mess. The string
+        # dictionary is per-page, so reset it before opening the new page.
+        SESSION = SessionStringDict()
         page = open_data_table_builder()
 
-        # ── Control ordering (this is what fixes the PHR-switch crash) ───────
+        # ── Control ordering
         # The dashboard's controls are interdependent:
         #   * The "Select Area" list only contains regions that have data for
         #     the CURRENTLY selected Health Topic. The previous PHR's loop ends
@@ -575,7 +624,6 @@ with sync_playwright() as playwright:
 
         choose_dropdown_value(page, re.compile(r"Select Year", re.I), YEAR)
 
-        # ── Context-dependent topic-list fix ─────────────────────────────────
         # Re-read the Health Topic options AFTER Area + Year are set. This
         # dropdown is context-dependent: its available options change with the
         # selected Area and Year. Reading it once up front (under the default
@@ -607,46 +655,50 @@ with sync_playwright() as playwright:
                 questions = questions[:MAX_QUESTIONS_PER_TOPIC]
 
             for question in questions:
-                feature = find_matching_feature(topic, question, features)
-
-                if feature is None:
-                    print(f"    Skipping, not in feature file: {question}", flush=True)
-                    continue
-
-                print(f"    Feature: {feature}", flush=True)
-                print(f"      Question: {question}", flush=True)
+                # Pace the loop so we don't overwhelm the dashboard with rapid
+                # back-to-back selections (which can drop the data response).
+                page.wait_for_timeout(500)
 
                 # Always re-fire the query for the question (skip_if_selected=False)
                 # so we capture its Tableau data response even if this question
-                # happens to already be the displayed one.
+                # happens to already be the displayed one. require_table=True makes
+                # the selection retry until the Data Table response is captured,
+                # instead of accepting whichever tabdoc POST happened to land first.
                 response_text = choose_dropdown_value(
                     page,
                     re.compile(r"(Question Asked|Description1)", re.I),
                     question,
                     skip_if_selected=False,
+                    require_table=True,
                 )
 
                 if not response_text or "vqlCmdResponse" not in response_text:
-                    print("      No Tableau response; skipping row", flush=True)
+                    print(f"      No Data Table response after retries; skipping: {question}", flush=True)
                     continue
 
                 total_values = get_total_percent_values(response_text)
 
                 row = {
-                    "feature": feature,
                     "area": area_number,
+                    "topic": topic,
                     "question": question,
                 }
                 row.update(total_values)
                 rows.append(row)
 
-        # Done with this region — close its tab before starting the next one.
+        # Done with this region — close its tab before starting the next one. 
+        saved_count = save_rows(rows, OUTPUT_CSV)
+        print(f" Saved {saved_count} rows for {area} to {OUTPUT_CSV}", flush=True) 
+        rows = []
         page.close()
-
+        
+    # Final safety flush — should be empty if every region saved successfully above.
+    save_rows(rows, OUTPUT_CSV)
+    print(f"\nDone. Output written incrementally to {OUTPUT_CSV}", flush=True)
     browser.close()
 
-# Deduplicate in case the same feature/area/question was captured more than once
-# (can happen if a question appears under multiple topics).
-df = pd.DataFrame(rows).drop_duplicates()
-df.to_csv(OUTPUT_CSV, index=False)
-print(f"\nSaved {len(df)} rows to {OUTPUT_CSV}", flush=True)
+# Deduplicate in case the same area/topic/question was captured more than once.
+# df = pd.DataFrame(rows).drop_duplicates()
+# OUTPUT_CSV.parent.mkdir(parents=True, exist_ok=True)
+# df.to_csv(OUTPUT_CSV, index=False)
+# print(f"\nSaved {len(df)} rows to {OUTPUT_CSV}", flush=True)
