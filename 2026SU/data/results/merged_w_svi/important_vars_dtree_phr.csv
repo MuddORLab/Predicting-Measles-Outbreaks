@@ -1,10 +1,10 @@
 Variable,Importance
-overweight_or_obese_no_pct_diff,58.11241151755921
-overweight_or_obese_yes_pct_diff,58.11241151755921
-bmi_3_categories_recommended_range,48.613267327188964
-overweight_or_obese_yes,48.613267327188964
-bmi_4_categories_recommended_range,48.05449413952011
-bmi_5_categories_recommended_range,48.05449413952011
+overweight_or_obese_yes_pct_diff,58.112411517557014
+flu_shot_18_64_yes,56.309451939049254
+bmi_3_categories_recommended_range,48.613267327187124
+overweight_or_obese_yes,48.613267327187124
+bmi_4_categories_recommended_range,48.0544941395183
+bmi_5_categories_recommended_range,48.0544941395183
 ep_otherrace,32.30582481157661
 pct_black,14.05875626230289
 ep_munit,10.619815089124431
@@ -12,7 +12,6 @@ enrollment,10.070697870934167
 density,9.441279254000785
 any_cancer_yes,9.372504174868588
 depressive_disorder_yes,9.372504174868588
-flu_shot_18_64_yes,9.372504174868588
 flu_vaccine_location_doctors_office_hmo,9.372504174868588
 health_care_coverage_yes,9.372504174868588
 ep_age65,8.182442020134003
