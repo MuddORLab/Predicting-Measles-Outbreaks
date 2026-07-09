@@ -57,10 +57,11 @@ MAX_TOPICS              = None
 MAX_QUESTIONS_PER_TOPIC = None
 
 # Output CSV: one row per area/topic/question.
-# Saved next to this script by default (no editing needed). To put it elsewhere,
-# change BASE_DIR or set OUTPUT_CSV to an absolute path.
-BASE_DIR = Path(__file__).resolve().parent
-OUTPUT_CSV = BASE_DIR / "brfss_2014_phr_1_8_11_all_questions.csv"
+# Written to the repo's data folder (data/brfss_export_data/), which is where
+# cleaning_phr_data.ipynb reads it from. Resolved relative to this script, so it
+# works on any machine without editing.
+REPO_ROOT = Path(__file__).resolve().parents[3]
+OUTPUT_CSV = REPO_ROOT / "data" / "brfss_export_data" / "brfss_2014_phr_1_8_11_all_questions.csv"
 OUTPUT_CSV.parent.mkdir(parents=True, exist_ok=True)
 
 
