@@ -12,6 +12,16 @@ percentages plus sample size). No feature-name matching is performed -- every
 question and answer the dashboard exposes is written out, one CSV row per
 area/topic/question, with one column per answer option. Any normalization or
 mapping to canonical BRFSS variable names is left to downstream analysis.
+
+CUSTOMIZATION (Signified with @TODO)
+  * YEAR / AREAS: which survey year and which regions to scrape.
+  * ANCHOR_TOPIC: if you change YEAR or AREAS and area selection
+    fails, pick a topic that has data for all your target areas 
+    (see the comment on ANCHOR_TOPIC).
+  * MAX_TOPICS / MAX_QUESTIONS_PER_TOPIC : set to small integers (e.g. 2)
+    for a quick test run before a full scrape.
+  * OUTPUT_CSV : where the CSV is written; you MUST set this to a
+    path on your own computer (see SETUP step 5).
 """
 from pathlib import Path
 import json
@@ -21,7 +31,7 @@ import time
 import pandas as pd
 from playwright.sync_api import sync_playwright, TimeoutError
 
-# CONFIGURATION
+# CONFIGURATION @TODO
 URL = "https://tabexternal.dshs.texas.gov/t/THD/views/BRFSSRedesignDraft/BRFSS"
 
 DASHBOARD       = "Data Table Builder 2011+"
@@ -35,27 +45,27 @@ AREAS = [
     "Public Health Region 11",
 ]
 
+# @TODO
 # The "Select Area" dropdown only lists regions that have data for the CURRENTLY
 # selected Health Topic. So before switching the Area we first select an "anchor"
-# topic that is known to have data for every target PHR — otherwise a leftover
-# restrictive topic from the previous region (e.g. "Walking For Transportation",
-# which has no PHR-level data) leaves the Area list empty and the area selection
-# crashes. "Adult Immunizations" has data for PHR 1, 8, and 11 in 2014. If you
+# topic that is known to have data for every target PHR. If you
 # change YEAR or AREAS and the area selection fails, pick a different anchor.
 ANCHOR_TOPIC = "Adult Immunizations"
 
+# @TODO
 MAX_TOPICS              = None
 MAX_QUESTIONS_PER_TOPIC = None
 
-# Scraped output CSV; one row per area/topic/question combination.
-OUTPUT_CSV = Path(
-    "/Users/sean/Summer 2026 Research/Measles-Outbreak-and-Public-Policy-Reluctance/"
-    "2026SU/data/brfss_export_data/brfss_2014_phr_1_8_11_all_questions.csv"
-)
+# Output CSV: one row per area/topic/question.
+# Saved next to this script by default (no editing needed). To put it elsewhere,
+# change BASE_DIR or set OUTPUT_CSV to an absolute path.
+BASE_DIR = Path(__file__).resolve().parent
+OUTPUT_CSV = BASE_DIR / "brfss_2014_phr_1_8_11_all_questions.csv"
+OUTPUT_CSV.parent.mkdir(parents=True, exist_ok=True)
 
 
 def clean_column_name(value):
-    # Convert Tableau's display-friendly response labels (e.g. "Yes, During Pregnancy")
+    # Convert Tableau's display-friendly response labels 
     # into safe, lowercase, underscore-separated identifiers for the CSV header.
     value = str(value).lower()
     value = "".join(char if char.isalnum() else "_" for char in value)
@@ -162,10 +172,9 @@ def choose_dropdown_value(page, button_name, value, skip_if_selected=True, requi
 
     # require_table=True (used for the Question filter) means we must capture the
     # Data Table response this selection triggers. The critical reliability point:
-    # we WAIT for that response to actually arrive — however slow — instead of
+    # we WAIT for that response to actually arrive instead of
     # capturing only what shows up during a fixed wait. After many interactions
-    # the dashboard gets sluggish and the response lands a few seconds late; a
-    # fixed wait closes the capture window too early and the row is lost. We poll
+    # the dashboard gets sluggish and the response lands a few seconds late. We poll
     # the captured responses until one carries the worksheet zone, then retry the
     # whole selection (re-opening the dropdown) if it never came.
     response_text = None
@@ -216,14 +225,11 @@ def choose_dropdown_value(page, button_name, value, skip_if_selected=True, requi
         finally:
             page.remove_listener("response", collect_tabdoc)
 
-        # Navigation selects (topic/geography/area/year) don't need the response
-        # body — clicking the option already updated the dashboard state.
+        # Navigation selects (topic/geography/area/year) don't need the response body
         if not require_table or response_text:
             break
 
-        # No Data Table response this round. Log what we did get (helps tell a
-        # genuinely data-less question apart from a dropped/slow response), settle,
-        # and retry the selection from a freshly re-opened dropdown.
+        # No Data Table response this round. Log what we did get
         commands = []
         for response in captured:
             try:
@@ -387,7 +393,7 @@ def command_response_to_table(command_text, string_values=None):
     # Reconstruct the visible crosstab from Tableau's wire format: columns list
     # their pane/column index into a nested structure that holds the actual
     # value-index arrays, which we decode using the shared string dictionary.
-    # string_values should be the SESSION-accumulated dictionary; we fall back to
+    # string_values should be the SESSION-accumulated dictionary. We fall back to
     # this single response's dictionary only when no accumulated one is supplied.
     command_response = json.loads(command_text)
     if string_values is None:
@@ -477,8 +483,7 @@ def save_rows(rows_to_save, output_path):
     second region's values would be written under the first region's header and
     silently misaligned. Instead we read whatever is already on disk and
     pd.concat it with the new rows: concat aligns by column NAME and fills absent
-    cells with NaN, so every row stays under the correct header. With only a
-    handful of regions this full rewrite is cheap.
+    cells with NaN, so every row stays under the correct header. 
 
     Returns the number of new (deduplicated) rows contributed by this call.
     """
@@ -522,6 +527,8 @@ def region_already_saved(output_path, area_number):
 
 rows = []
 
+print(f"Output CSV: {OUTPUT_CSV}", flush=True)
+
 with sync_playwright() as playwright:
     # IMPORTANT: run headed. In headless Chromium, Tableau's quick-filter
     # dropdowns (especially the cascading "Select Area" list) frequently fail to
@@ -534,6 +541,8 @@ with sync_playwright() as playwright:
     )
     context = browser.new_context(
         viewport={"width": 1280, "height": 1400},
+        # the platform it claims doesn't need to match the machine you run on
+        # it just presents the dashboard with non-automated-looking browser signature.
         user_agent=(
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -545,10 +554,7 @@ with sync_playwright() as playwright:
         """Open a FRESH page on the Data Table Builder dashboard.
 
         Each PHR gets its own clean page so it never inherits the previous
-        region's tangled filter state. That leftover state -- a "dead" topic with
-        no PHR data, a parenthesized/invalid area -- is what made the 2nd and 3rd
-        regions fail while the 1st (which always started clean) worked. Starting
-        fresh makes every region behave like the first one.
+        region's tangled filter state. 
         """
         new_page = context.new_page()
         # Fold every tabdoc response (navigation + filter changes) into the
@@ -571,39 +577,24 @@ with sync_playwright() as playwright:
         area_number = re.sub(r"[^\d]", "", area)
 
         #double checks if region data is already in the CSV
-        if region_already_saved(OUTPUT_CSV, area_number): 
-            print(f"\nArea: {area} — already in {OUTPUT_CSV.name}, skipping", flush=True) 
+        if region_already_saved(OUTPUT_CSV, area_number):
+            print(f"\nArea: {area} — already in {OUTPUT_CSV.name}, skipping", flush=True)
             continue
 
         print(f"\nArea: {area}", flush=True)
 
         # Fresh page per region: start from the dashboard's clean default state
-        # instead of inheriting the previous PHR's filter mess. The string
-        # dictionary is per-page, so reset it before opening the new page.
+        # The string dictionary is per-page, so reset it before opening the new page.
         SESSION = SessionStringDict()
         page = open_data_table_builder()
 
         # ── Control ordering
-        # The dashboard's controls are interdependent:
-        #   * The "Select Area" list only contains regions that have data for
-        #     the CURRENTLY selected Health Topic. The previous PHR's loop ends
-        #     on whatever topic came last (e.g. "Walking For Transportation",
-        #     which has no PHR-level data), so the Area list is empty and the
-        #     next region can't be selected.
-        #   * Changing the Health Topic RESETS Geographic Category and Year to
-        #     their defaults whenever the current topic has no data for the
-        #     current geography. (A valid->valid topic change keeps them.)
-        #
-        # So we must establish the topic FIRST, using an anchor topic that has
+        # The dashboard's controls are interdependent
+        # so we must establish the topic FIRST, using an anchor topic that has
         # data for every target PHR, and only THEN layer geography -> area ->
         # year on top of it. Selecting geography/area/year does NOT reset the
         # topic, so the full context sticks and the Area list always contains
         # the target PHR.
-        # The Area filter's option list repopulates ASYNCHRONOUSLY after the
-        # topic/geography change — opening it too soon catches an empty list,
-        # which is what made the PHR-8 selection fail. So we (re)establish the
-        # PHR-exposing context, wait for the cascade to settle, then select the
-        # area, retrying the whole thing if the option still isn't there yet.
         def establish_phr_context():
             choose_dropdown_value(page, re.compile(r"Select Health Topic", re.I), ANCHOR_TOPIC)
             choose_dropdown_value(page, re.compile(r"Select Geographic Category", re.I), GEOGRAPHIC_CATEGORY)
@@ -626,11 +617,7 @@ with sync_playwright() as playwright:
 
         # Re-read the Health Topic options AFTER Area + Year are set. This
         # dropdown is context-dependent: its available options change with the
-        # selected Area and Year. Reading it once up front (under the default
-        # Metro / 2023 context) and then trying to pick a topic that has no data
-        # for this PHR + 2014 makes the option wait_for() below time out and
-        # crash (e.g. "Actions to Control High Blood Pressure"). Reading it here
-        # lists only the topics that actually exist for this area + year.
+        # selected Area and Year. 
         print("  Getting topics for this area...", flush=True)
         topics = open_dropdown(page, re.compile(r"Select Health Topic", re.I))
         if MAX_TOPICS is not None:
@@ -655,8 +642,6 @@ with sync_playwright() as playwright:
                 questions = questions[:MAX_QUESTIONS_PER_TOPIC]
 
             for question in questions:
-                # Pace the loop so we don't overwhelm the dashboard with rapid
-                # back-to-back selections (which can drop the data response).
                 page.wait_for_timeout(500)
 
                 # Always re-fire the query for the question (skip_if_selected=False)
@@ -686,19 +671,13 @@ with sync_playwright() as playwright:
                 row.update(total_values)
                 rows.append(row)
 
-        # Done with this region — close its tab before starting the next one. 
+        # Done with this region — close its tab before starting the next one.
         saved_count = save_rows(rows, OUTPUT_CSV)
-        print(f" Saved {saved_count} rows for {area} to {OUTPUT_CSV}", flush=True) 
+        print(f" Saved {saved_count} rows for {area} to {OUTPUT_CSV}", flush=True)
         rows = []
         page.close()
-        
+
     # Final safety flush — should be empty if every region saved successfully above.
     save_rows(rows, OUTPUT_CSV)
     print(f"\nDone. Output written incrementally to {OUTPUT_CSV}", flush=True)
     browser.close()
-
-# Deduplicate in case the same area/topic/question was captured more than once.
-# df = pd.DataFrame(rows).drop_duplicates()
-# OUTPUT_CSV.parent.mkdir(parents=True, exist_ok=True)
-# df.to_csv(OUTPUT_CSV, index=False)
-# print(f"\nSaved {len(df)} rows to {OUTPUT_CSV}", flush=True)
