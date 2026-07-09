@@ -1,9 +1,0 @@
-dashboard,question_filter,question,is_in_reference_feature_file,feature,feature_match_score,feature_match_method
-Data Table Builder 2011+,Description1,"Ever Had Pneumonia Shot, Age 65+",True,"Pneumonia Shot, 65+",0.666,feature_name_fuzzy
-Data Table Builder 2011+,Description1,Flu Shot in the Past Year,True,Flu Shot in Past Year,0.992,feature_name_fuzzy
-Data Table Builder 2011+,Description1,"Flu Shot in the Past Year, Age 18-64",True,Flu Shot in Past Year,0.715,feature_name_fuzzy
-Data Table Builder 2011+,Description1,"Flu Shot in the Past Year, Age 65+ ",True,Flu Shot in Past Year,0.768,feature_name_fuzzy
-Data Table Builder 2002-2010,Short Description,Never Had Hepatitis B Vaccine,False,,,not_matched
-Data Table Builder 2002-2010,Short Description,"Never Had Pneumonia Shot, Age 65+",True,"Pneumonia Shot, 65+",0.664,feature_name_fuzzy
-Data Table Builder 2002-2010,Short Description,"No Flu Shot in the Past 12 Months, Age 18+",True,Flu Shot in Past Year,0.499,feature_name_fuzzy
-Data Table Builder 2002-2010,Short Description,"No Flu Shot in the Past 12 Months, Age 65+",True,"Flu Shot, 65+",0.58,feature_name_fuzzy
