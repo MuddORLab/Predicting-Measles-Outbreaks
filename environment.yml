@@ -1,0 +1,16 @@
+name: measles
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pandas
+  - numpy
+  - matplotlib
+  - openpyxl
+  - geopandas
+  - jupyter
+  - ipykernel
+  - pip
+  - pip:
+      - playwright
+      - smogn
