@@ -68,6 +68,10 @@ for(i in 1:nrow(param_grid_rf)){
   ))
 }
 
+
+print(results_rf_log)
+
+
 best_rf_log <- results_rf_log[which.max(results_rf_log$R2), ]
 print(best_rf_log)
 
@@ -103,7 +107,7 @@ plot_ly(results_rf_log, x = ~R2, y = ~RMSE, z = ~MAE,
             type = "scatter3d", mode = "markers+lines",
             marker = list(color = "red", size = 6))
 
-res_rf
+print(res_rf)
 
 # Random Forest with best params 
 set.seed(100)
@@ -131,12 +135,14 @@ cat("Final Random Forest | RMSE:", round(rf_rmse,4), "MAE:", round(rf_mae,4), "R
 
 imp <- importance(rforest_model_final)
 imp_sorted <- imp[order(imp[, "%IncMSE"], decreasing = TRUE), ]
-imp_sorted
+print(imp_sorted)
 
 
-saveRDS(rforest_model_final, "results/rforest_reg_svi.rds")
-write.csv(importance(rforest_model_final), "results/important_vars_rforest_reg.csv")
-write.csv(results_rf_log, "results/rforest_reg.csv")
+saveRDS(rforest_model_final, "results/regress_rf_model.rds")
+write.csv(imp_sorted, "results/regress_rf_important_vars.csv")
+write.csv(results_rf_log, "results/regress_rf_paramtune_results.csv")
+write.csv(res_rf, "results/regress_rf_best_combos.csv")
+
 
 # Restore outbreak to its correct values at the end if needed later.
 train$outbreak <- oldoutbreak

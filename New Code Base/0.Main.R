@@ -30,9 +30,9 @@ source("3.Clustering.R")
 
 
 ###################### CLASSIFICATION ############################
-
+# NO LONGER NEED FILE 4 BECAUSE IT IS HANDLED IN FILE 2.
 # Create training and testing partitioning for classification methods
-source("4.ClassificationSplitData.R")
+#source("4.ClassificationSplitData.R")
 # Reads in BRFSS+SVI+census+other PHR-level data for models
 # Saves training and testing files for use by all classification methods
 # Saves folds for use by all classification methods
@@ -78,9 +78,10 @@ source("8.LogisticRegression.R")
 
 ###################### REGRESSION ############################
 
+#NO LONGER NEED FILE 9 BECAUSE IT IS HANDLED IN FILE 2.
 
 # Create training and testing partitioning for regression methods
-source("9.RegressionSplitData.R")
+#source("9.RegressionSplitData.R")
 # Reads in BRFSS+SVI+census+other PHR-level data for models
 # Saves training and testing files for use by all regression methods
 # Saves folds for use by all regression methods
@@ -101,7 +102,7 @@ source("11.RegressionRandomForestAnalysis.R")
 # Parameter tuning for random forest
 # Saves any intermediate results used to choose optimal parameter values as included in manuscript
 # Fits and saves tuned model
-# Conducts analysis, including SHAP
+# Conducts analysis
 # Saves any results reported in the manuscript.
 
 # Regression XGBoost
@@ -110,7 +111,7 @@ source("12.RegressionXGBoostAnalysis.R")
 # Parameter tuning for xGBoost
 # Saves any intermediate results used to choose optimal parameter values as included in manuscript
 # Fits and saves tuned model
-# Conducts analysis, including SHAP
+# Conducts analysis
 # Saves any results reported in the manuscript.
 
 # Negative Binomial Regression --> Gaussian Regression on log counts

@@ -98,7 +98,7 @@ print(vif_values)
 par(mfrow = c(2, 2))
 
 # Plot all 4 diagnostic plots at once
-png("results/GLMregress_resids.png", width = 6, height = 4, units = "in", res = 300)
+png("results/regress_GLM_resids.png", width = 6, height = 4, units = "in", res = 300)
 plot(final_step_lm)
 dev.off()
 
@@ -221,9 +221,9 @@ p <- ggplot(df_fore, aes(x = estimate, y = label, color = direction)) +
 
 p
 
-ggsave("results/regressionGLMsigvars.pdf", p, width = 9, height = 6)
-saveRDS(final_step_lm, "results/regressionGLM.rds")
- 
+ggsave("results/regress_GLM_sigvars.pdf", p, width = 9, height = 6)
+saveRDS(final_step_lm, "results/regress_GLM_model.rds")
+
 
 train <-read_csv("intermed_regress_data/train_clean.csv")  # Restore train if needed later.
 test <- read_csv("intermed_regress_data/test_clean.csv") # Restore test if needed later.

@@ -94,6 +94,8 @@ for (i in 1:nrow(param_grid_xgb)) {
   ))
 }
 
+print(results_xgb_log)
+
 best_xgb_log <- results_xgb_log[which.max(results_xgb_log$R2), ]
 print(best_xgb_log)
 
@@ -127,7 +129,7 @@ plot_ly(results_xgb_log, x = ~R2, y = ~RMSE, z = ~MAE,
             type = "scatter3d", mode = "markers+lines",
             marker = list(color = "red", size = 6))
 
-res_xgb
+print(res_xgb)
 
 # XGBoost with best params
 set.seed(100)
@@ -172,11 +174,15 @@ cat("Final XGBoost | RMSE:", round(xgb_rmse,4), "MAE:", round(xgb_mae,4), "R2:",
 
 xgb.importance(model = boost_model_final)
 temp <- xgb.importance(model = boost_model_final)
+print(xgb.importance)
+
 plot(temp$Gain)
 
-write.csv(results_xgb_log, "results/xgboost_reg.csv")
-saveRDS(boost_model_final, "results/xgb_reg_svi.rds")
-write.csv(xgb.importance(model = boost_model_final), "results/important_vars_xgboost_reg.csv")
+write.csv(results_xgb_log, "results/regress_xgb_paramtune_results.csv")
+saveRDS(boost_model_final, "results/regress_xgb_model.rds")
+write.csv(xgb.importance(model = boost_model_final), "results/regress_xgb_important_vars.csv")
+write.csv(res_xgb, "results/regress_xgb_best_combos.csv")
+
 
 # Restore outbreak to its correct values at the end if needed later.
 train$outbreak <- oldoutbreak

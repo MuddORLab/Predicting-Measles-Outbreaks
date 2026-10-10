@@ -1,6 +1,5 @@
 rm(list=ls())
 test <-read_csv("intermed_regress_data/test_clean.csv")
-#train_balanced <-read_csv("intermed_regress_data/train_balanced.csv")  # SMOTE IS NOT USED.
 train <-read_csv("intermed_regress_data/train_clean.csv")
 folds <-readRDS("intermed_regress_data/folds.rds")
 
@@ -63,9 +62,8 @@ for(i in 1:nrow(param_grid_tree)){
   ))
 }
 
-best_log <- results_log[which.max(results_log$R2), ]
 print(results_log)
-print(best_log)
+
 
 ##### IDENTIFYING BEST PARAMETER COMBINATIONS ######
 p <- high(R2, df = results_log) * low(RMSE) * low(MAE)
@@ -95,7 +93,7 @@ plot_ly(results_log, x = ~R2, y = ~RMSE, z = ~MAE,
             type = "scatter3d", mode = "markers+lines",
             marker = list(color = "red", size = 6))
 
-res
+print(res)
 
 
 # Regression Tree with best params
@@ -135,6 +133,8 @@ importance_df <- data.frame(
   row.names = NULL
 )
 
+print(importance_df)
+
 # Variable Importance
 # 1              ever_had_blood_stool_test_yes_pct_diff    3.02379
 # 2                  heavy_drinking_females_no_pct_diff    3.02379
@@ -144,9 +144,10 @@ importance_df <- data.frame(
 # 6                              bmi_3_categories_obese    2.49018
 
 
-write.csv(importance_df, "results/important_vars_dtree_reg.csv")
-saveRDS(dtree_model_final, "results/dtree_reg_svi.rds")
-write.csv(results_log, "results/dtree_reg.csv")
+write.csv(importance_df, "results/regress_tree_important_vars.csv")
+saveRDS(dtree_model_final, "results/regress_tree_model.rds")
+write.csv(results_log, "results/regress_tree_paramtune_results.csv")
+write.csv(res, "results/regress_tree_best_combos.csv")
 
 
 # Restore outbreak to its correct values at the end if needed later.
