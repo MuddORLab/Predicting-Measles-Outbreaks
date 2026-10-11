@@ -1,0 +1,259 @@
+sheet_2024,response_2024,sheet_2014,response_2014
+General Health,Excellent,General Health,Excellent
+General Health,Very Good,General Health,Very Good
+General Health,Good,General Health,Good
+General Health,Fair,General Health,Fair
+General Health,Poor,General Health,Poor
+Fair or Poor Health,Fair or Poor Health,Fair to Poor Health,Fair to Poor Health
+Fair or Poor Health,Good or Better Health,Fair to Poor Health,Good or Better Health
+Poor Physical Health 5+ Days,None to less than 5 days,Poor Physical Health 5+ Days,None to less than 5 days
+Poor Physical Health 5+ Days,5 or more days,Poor Physical Health 5+ Days,5 or more days
+Poor Mental Health 5+ Days,None to less than 5 days,Poor Mental Health 5+ Days,None to less than 5 days
+Poor Mental Health 5+ Days,5 or more days,Poor Mental Health 5+ Days,5 or more days
+Hlth Affected Activ 5+ Days,None to less than 5 days,Poor Hlth Affected Activ. 5+,None or less than 5 days
+Hlth Affected Activ 5+ Days,None to less than 5 days,Poor Hlth Affected Activ 5+,None or less than 5 days
+Hlth Affected Activ 5+ Days,5 or more days,Poor Hlth Affected Activ. 5+,5 or more days
+Hlth Affected Activ 5+ Days,5 or more days,Poor Hlth Affected Activ 5+,5 or more days
+Health Care Provider,More than one,Have Personal Doctor,"Yes, more than one"
+Health Care Provider,No,Have Personal Doctor,No
+Have At Least One Personal D,Yes,Have At Least One Personal Dr,Yes
+Have At Least One Personal D,No,Have At Least One Personal Dr,No
+Medical Cost,Yes,Medical Cost,Yes
+Medical Cost,No,Medical Cost,No
+Routine Checkup,Within the past year,Routine Checkup,Within the past year
+Routine Checkup,Within the past 2 years,Routine Checkup,Within past 2 years
+Routine Checkup,Within the past 5 years,Routine Checkup,Within past 5 years
+Routine Checkup,5 or more years,Routine Checkup,5 or more years ago
+Routine Checkup,Never,Routine Checkup,Never
+Leisure Time PA,Yes,Leisure Time PA,Yes
+Leisure Time PA,No,Leisure Time PA,No
+Heart Attack,Yes,Heart Attack,Yes
+Heart Attack,No,Heart Attack,No
+Coronary Heart Disease,Yes,Coronary Heart Disease,Yes
+Coronary Heart Disease,No,Coronary Heart Disease,No
+Heart Disease,Yes,Heart Disease,Yes
+Heart Disease,No,Heart Disease,No
+Stroke,Yes,Stroke,Yes
+Stroke,No,Stroke,No
+CVD,Yes,Cardiovascular Disease,Yes
+CVD,No,Cardiovascular Disease,No
+Lifetime Asthma,Yes,Lifetime Asthma,Yes
+Lifetime Asthma,No,Lifetime Asthma,No
+Current Asthma,Yes,Current Asthma,Yes
+Current Asthma,No,Current Asthma,No
+Current Asthma 2,Yes,Current Asthma Status,Yes
+Current Asthma 2,No,Current Asthma Status,No
+Asthma Status,Current,Asthma Status,Current
+Asthma Status,Former,Asthma Status,Former
+Asthma Status,Never,Asthma Status,Never
+Skin Cancer,Yes,Skin Cancer,Yes
+Skin Cancer,No,Skin Cancer,No
+Other Cancer,Yes,Other Cancer,Yes
+Other Cancer,No,Other Cancer,No
+Any Cancer,Yes,Any Cancer,Yes
+Any Cancer,No,Any Cancer,No
+COPD,Yes,COPD,Yes
+COPD,No,COPD,No
+Arthritis,Yes,Arthritis,Yes
+Arthritis,No,Arthritis,No
+Depressive Disorder,Yes,Depressive Disorders,Yes
+Depressive Disorder,No,Depressive Disorders,No
+Kidney Disease,Yes,Kidney Disease,Yes
+Kidney Disease,No,Kidney Disease,No
+Diabetes,Yes,Diabetes,Yes
+Diabetes,"Yes, but during pregnancy",Diabetes,"Yes, but told during pregnancy"
+Diabetes,No,Diabetes,No
+Diabetes Status,Yes,Diabetes Status,Yes
+Diabetes Status,No,Diabetes Status,No
+BMI 3 Categories,Overweight,BMI 3 Categories,Overweight
+BMI 3 Categories,Obese,BMI 3 Categories,Obese
+BMI 5 Categories,Underweight,BMI 5 Categories,Underweight
+BMI 5 Categories,Recommended Range,BMI 5 Categories,Normal weight
+BMI 5 Categories,Overweight,BMI 5 Categories,Overweight
+BMI 5 Categories,Obese,BMI 5 Categories,Obese
+BMI 5 Categories,Extremely Obese,BMI 5 Categories,Extremely obese
+BMI 4 Categories,Underweight,BMI 4 Categories,Underweight
+BMI 4 Categories,Recommended Range,BMI 4 Categories,Normal weight
+BMI 4 Categories,Overweight,BMI 4 Categories,Overweight
+BMI 4 Categories,Obese,BMI 4 Categories,Obese
+Overweight or Obese,Yes,Overweight or Obese,At Risk
+Overweight or Obese,No,Overweight or Obese,Not At Risk
+Obese,Yes,Obese,At Risk
+Obese,No,Obese,Not At Risk
+Ever Smoked,Yes,Ever Smoked,Yes
+Ever Smoked,No,Ever Smoked,No
+Frequency of Smoking,Every day,Frequency of Smoking,Every Day
+Frequency of Smoking,Some days,Frequency of Smoking,Some Days
+Frequency of Smoking,Not at all,Frequency of Smoking,Not at all
+Smoker Status,Current smoker - every day,Smoker Status,Current Smoker - Every Day
+Smoker Status,Current smoker - some days,Smoker Status,Current Smoker - Some Days
+Smoker Status,Former smoker,Smoker Status,Former Smoker
+Current Smoker,Yes,Current Smoker,At Risk
+Current Smoker,No,Current Smoker,Not At Risk
+Quit Smoking in Past Yr,Yes,Quit Smoking Past Yr,Yes
+Quit Smoking in Past Yr,Yes,Quit Smoking in the Past Year,Yes
+Quit Smoking in Past Yr,No,Quit Smoking Past Yr,No
+Quit Smoking in Past Yr,No,Quit Smoking in the Past Year,No
+Last Smoked,Within past month,Time Since Quit Smoking,Within the past month
+Last Smoked,Within past 3 months,Time Since Quit Smoking,Within the past 3 months
+Last Smoked,Within past 6 months,Time Since Quit Smoking,Within the past 6 months
+Last Smoked,Within past year,Time Since Quit Smoking,Within the past year
+Last Smoked,Within past 5 years,Time Since Quit Smoking,Within the past 5 years
+Last Smoked,Within past 10 years,Time Since Quit Smoking,Within the past 10 years
+Last Smoked,10+ years,Time Since Quit Smoking,Within the past 10 years
+Last Smoked,Never smoked regularly,Time Since Quit Smoking,Never smoked regularly
+Smokeless Tobacco Use,Every day,Smokeless Tobacco Use,Every Day
+Smokeless Tobacco Use,Some days,Smokeless Tobacco Use,Some Days
+Smokeless Tobacco Use,Not at all,Smokeless Tobacco Use,Not at all
+Flu Shot in Past Year,Yes,Flu Shot Past Yr,Yes
+Flu Shot in Past Year,Yes,Flu Shot Past Year,Yes
+Flu Shot in Past Year,No,Flu Shot Past Yr,No
+Flu Shot in Past Year,No,Flu Shot Past Year,No
+"Flu Shot, 18-64",Yes,Flu Shot Past Yr Age 18-64,Yes
+"Flu Shot, 18-64",Yes,Flu Shot Past Year Age 18-64,Yes
+"Flu Shot, 18-64",No,Flu Shot Past Yr Age 18-64,No
+"Flu Shot, 18-64",No,Flu Shot Past Year Age 18-64,No
+"Flu Shot, 65+",Yes,Flu Shot Past Yr Age 65+,Yes
+"Flu Shot, 65+",Yes,Flu Shot Past Year Age 65+,Yes
+"Flu Shot, 65+",No,Flu Shot Past Yr Age 65+,No
+"Flu Shot, 65+",No,Flu Shot Past Year Age 65+,No
+Flu Vaccine Location,Health department,Location of Flu Shot,A health department
+Flu Vaccine Location,"Clinic
+Health center",Location of Flu Shot,Another type of clinic or health center
+Flu Vaccine Location,Store,Location of Flu Shot,A store
+Flu Vaccine Location,Hospital,Location of Flu Shot,A hospital
+Flu Vaccine Location,Emergency room,Location of Flu Shot,An emergency room
+Flu Vaccine Location,Workplace,Location of Flu Shot,Workplace
+Flu Vaccine Location,Other,Location of Flu Shot,Some other kind of place
+Flu Vaccine Location,"Canada
+Mexico",Location of Flu Shot,Received it in Canada/Mexico
+Flu Vaccine Location,School,Location of Flu Shot,A school
+"Pneumonia Shot, 18+",Yes,Ever Had Pneumonia Shot,Yes
+"Pneumonia Shot, 18+",No,Ever Had Pneumonia Shot,No
+"Pneumonia Shot, 65+",Yes,Ever Had Pneumonia Shot Age 65+,Yes
+"Pneumonia Shot, 65+",Yes,Ever Had Pneumonia Shot 65+,Yes
+"Pneumonia Shot, 65+",No,Ever Had Pneumonia Shot Age 65+,No
+"Pneumonia Shot, 65+",No,Ever Had Pneumonia Shot 65+,No
+Any Drinking Past Month,Yes,Any Drinking Past Month,Yes
+Any Drinking Past Month,Yes,Any Drinking In the Past Month,Yes
+Any Drinking Past Month,No,Any Drinking Past Month,No
+Any Drinking Past Month,No,Any Drinking In the Past Month,No
+Binge Drinking,Yes,Binge Drinking Past Month,At Risk
+Binge Drinking,No,Binge Drinking Past Month,Not At Risk
+Heavy Drinking,Yes,Heavy Alcohol Consumption,At Risk
+Heavy Drinking,No,Heavy Alcohol Consumption,Not At Risk
+Heavy Drinking - Males,Yes,Heavy Alc. Consumption Males,At Risk
+Heavy Drinking - Males,Yes,Heavy Alcohol Consumption Males,At Risk
+Heavy Drinking - Males,No,Heavy Alc. Consumption Males,Not At Risk
+Heavy Drinking - Males,No,Heavy Alcohol Consumption Males,Not At Risk
+Heavy Drinking - Females,Yes,Heavy Alc. Consumption Females,At Risk
+Heavy Drinking - Females,Yes,Heavy Alcohol Consump Females,At Risk
+Heavy Drinking - Females,No,Heavy Alc. Consumption Females,Not At Risk
+Heavy Drinking - Females,No,Heavy Alcohol Consump Females,Not At Risk
+Binge-Heavy Drinking - Femal,Yes,Binge Heavy Alcohol Fem 18-44,Yes
+Binge-Heavy Drinking - Femal,No,Binge Heavy Alcohol Fem 18-44,No
+Ever Had HIV Test,Yes,Ever Had HIV Test,Yes
+Ever Had HIV Test,No,Ever Had HIV Test,No
+Diabetes Test,Yes,Tested for Diabetes,Yes
+Diabetes Test,No,Tested for Diabetes,No
+Pre-Diabetes,Yes,Prediabetes,Yes
+Pre-Diabetes,"Yes, during pregnancy",Prediabetes,"Yes, during pregnancy"
+Pre-Diabetes,No,Prediabetes,No
+Insulin,Yes,Taking Insulin,Yes
+Insulin,No,Taking Insulin,No
+A One C,Yes,A1C Test Past Yr,Yes
+A One C,Yes,A1C Test the Past Year,Yes
+A One C,No,A1C Test Past Yr,No
+A One C,No,A1C Test the Past Year,No
+Diabetes Eye Exam,Within the past month,Time Since Last Eye Exam,Within the past month
+Diabetes Eye Exam,Within the past year,Time Since Last Eye Exam,Within the past year
+Diabetes Eye Exam,Within the past 2 years,Time Since Last Eye Exam,Within the past 2 years
+Diabetes Eye Exam,Never,Time Since Last Eye Exam,Never
+Diabetes Education,Yes,Ever Attended Diabetes Educ.,Yes
+Diabetes Education,Yes,Ever Attended Diabetes Ed,Yes
+Diabetes Education,No,Ever Attended Diabetes Educ.,No
+Diabetes Education,No,Ever Attended Diabetes Ed,No
+Last Dentist Visit,Within the past year,Time Since Last Dentist Visit,Within the past year
+Last Dentist Visit,Within the past 2 years,Time Since Last Dentist Visit,Within the past 2 years
+Last Dentist Visit,Within the past 5 years,Time Since Last Dentist Visit,Within the past 5 years
+Last Dentist Visit,5 or more years,Time Since Last Dentist Visit,5 or more years ago
+Last Dentist Visit,Never,Time Since Last Dentist Visit,Never
+Dentist Visit Past Year,Yes,Dentist Visit Past Yr,Yes
+Dentist Visit Past Year,Yes,Dentist Visit in the Past Year,Yes
+Dentist Visit Past Year,No,Dentist Visit Past Yr,No
+Dentist Visit Past Year,No,Dentist Visit in the Past Year,No
+RemoveTeeth,1 to 5,Permanent Teeth Removed,1 to 5 teeth removed
+RemoveTeeth,"6 or More, but not all",Permanent Teeth Removed,6 or more but not all teeth removed
+RemoveTeeth,All,Permanent Teeth Removed,All teeth removed
+Mammogram,Yes,Ever Had Mammogram,Yes
+Mammogram,No,Ever Had Mammogram,No
+Mammogram Past 2 Yrs 40+,Yes,Mammogram Past 2 Yrs Age 40+,At Risk
+Mammogram Past 2 Yrs 40+,Yes,Mammogram Past 2 Years Age 40+,At Risk
+Mammogram Past 2 Yrs 40+,No,Mammogram Past 2 Yrs Age 40+,Not At Risk
+Mammogram Past 2 Yrs 40+,No,Mammogram Past 2 Years Age 40+,Not At Risk
+Mammogram Past 2 Yrs 50+,Yes,Mammogram Past 2 Yrs Age 50+,At Risk
+Mammogram Past 2 Yrs 50+,Yes,Mammogram Past 2 Years Age 50+,At Risk
+Mammogram Past 2 Yrs 50+,No,Mammogram Past 2 Yrs Age 50+,Not At Risk
+Mammogram Past 2 Yrs 50+,No,Mammogram Past 2 Years Age 50+,Not At Risk
+Mammogram Past 2 Yrs 50-74,Yes,Mammogram Past 2 Yrs Age 50-74,At Risk
+Mammogram Past 2 Yrs 50-74,No,Mammogram Past 2 Yrs Age 50-74,Not At Risk
+Pap Test Past 3 Yrs 21-65,Yes,Pap Smear 3 Yrs Age 21-65,At Risk
+Pap Test Past 3 Yrs 21-65,Yes,Pap Smear Past 3 Yrs Age 21-65,At Risk
+Pap Test Past 3 Yrs 21-65,No,Pap Smear 3 Yrs Age 21-65,Not At Risk
+Pap Test Past 3 Yrs 21-65,No,Pap Smear Past 3 Yrs Age 21-65,Not At Risk
+Hysterectomy,Yes,Had Hysterectomy,Yes
+Hysterectomy,No,Had Hysterectomy,No
+Ever Had Blood Stool Test,Yes,Ever Had Blood Stool Test,Yes
+Ever Had Blood Stool Test,No,Ever Had Blood Stool Test,No
+DurationHomeBloodStoolTest,Within the past year,Time Since Blood Stool Test,Within the past year
+DurationHomeBloodStoolTest,Within the past 2 years,Time Since Blood Stool Test,Within the past 2 years
+DurationHomeBloodStoolTest,Within the past 3 years,Time Since Blood Stool Test,Within the past 3 years
+DurationHomeBloodStoolTest,Within the past 5 years,Time Since Blood Stool Test,Within the past 5 years
+DurationHomeBloodStoolTest,5 or more years ago,Time Since Blood Stool Test,5 or more years ago
+Ever Had Sgmscpy-clnscpy,Yes,Ever Had Sigmd or Colonoscopy,Yes
+Ever Had Sgmscpy-clnscpy,No,Ever Had Sigmd or Colonoscopy,No
+Poor Physical Health 14+ Day,None to less than 14 days,Poor Physical Health 14+ Days,None to less than 14 days
+Poor Physical Health 14+ Day,14 or more days,Poor Physical Health 14+ Days,14 or more days
+Poor Mental Health 14+ Days,None to less than 14 days,Poor Mental Health 14+ Days,None to less than 14 days
+Poor Mental Health 14+ Days,14 or more days,Poor Mental Health 14+ Days,14 or more days
+Hlth Affected Activ 14+ Days,None to less than 14 days,Poor Hlth Affected Activ. 14+,None or less than 14 days
+Hlth Affected Activ 14+ Days,None to less than 14 days,Poor Hlth Affected Activ 14+,None or less than 14 days
+Hlth Affected Activ 14+ Days,14 or more days,Poor Hlth Affected Activ. 14+,14 or more days
+Hlth Affected Activ 14+ Days,14 or more days,Poor Hlth Affected Activ 14+,14 or more days
+Blind,Yes,Blind,Yes
+Blind,Yes,Is Blind,Yes
+Blind,No,Blind,No
+Blind,No,Is Blind,No
+Difficulty Concentrating,Yes,Difficulty Concentrating,Yes
+Difficulty Concentrating,No,Difficulty Concentrating,No
+Difficulty Walking,Yes,Difficulty Walking,Yes
+Difficulty Walking,No,Difficulty Walking,No
+Difficulty Dressing,Yes,Difficulty Dressing or Bathing,Yes
+Difficulty Dressing,No,Difficulty Dressing or Bathing,No
+Difficulty Doing Errands Alo,Yes,Difficulty Doing Errands Alone,Yes
+Difficulty Doing Errands Alo,No,Difficulty Doing Errands Alone,No
+Health Care Coverage Age 18-,Yes,Health Care Coverage Age 18-64,Yes
+Health Care Coverage Age 18-,No,Health Care Coverage Age 18-64,No
+Served on Active Duty,Yes,Served On Active Duty,Yes
+Served on Active Duty,No,Served On Active Duty,No
+Diabetes Age,65 years or older,Age When Diagnosed w Diabetes,65 years old or older
+Disability Status,Yes,Disability Status,Yes
+Disability Status,No,Disability Status,No
+Col Past 10 Yrs 50-75,Yes,Col Past 10 Yrs Age 50-75,At Risk
+Col Past 10 Yrs 50-75,Yes,Col Past 10 Years Age 50-75,At Risk
+Col Past 10 Yrs 50-75,No,Col Past 10 Yrs Age 50-75,Not At Risk
+Col Past 10 Yrs 50-75,No,Col Past 10 Years Age 50-75,Not At Risk
+Sigm Past 5 Yrs Age 50-75,Yes,Sigmd Past 5 Yrs Age 50-75,At Risk
+Sigm Past 5 Yrs Age 50-75,Yes,Sigmd Past 5 Years Age 50-75,At Risk
+Sigm Past 5 Yrs Age 50-75,No,Sigmd Past 5 Yrs Age 50-75,Not At Risk
+Sigm Past 5 Yrs Age 50-75,No,Sigmd Past 5 Years Age 50-75,Not At Risk
+FOBT Past Yr,Yes,FOBT Past Yr Age 50-75,At Risk
+FOBT Past Yr,No,FOBT Past Yr Age 50-75,Not At Risk
+Sigm and Blood Stool Age 50-,Yes,Sigmd 5 Yrs FOBT 3 Yrs 50-75,At Risk
+Sigm and Blood Stool Age 50-,No,Sigmd 5 Yrs FOBT 3 Yrs 50-75,Not At Risk
+Up-To-Date CRC Scrn Age 50-7,Yes,Up-To-Date CRC Scrn Age 50-75,At Risk
+Up-To-Date CRC Scrn Age 50-7,No,Up-To-Date CRC Scrn Age 50-75,Not At Risk
+Health Care Coverage,Yes,Health Care Coverage,Yes
+Health Care Coverage,No,Health Care Coverage,No
+ClnscpySgmscpy,Colonoscopy,Most Recent Exam Sigmd or Col,Colonoscopy
+ClnscpySgmscpy,Sigmoidoscopy,Most Recent Exam Sigmd or Col,Sigmoidoscopy

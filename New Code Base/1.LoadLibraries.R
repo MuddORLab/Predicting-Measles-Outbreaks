@@ -18,7 +18,7 @@ library(ipred)       # bagging
 library(janitor)
 library(MASS)
 library(plotly)
-library(randomForest())
+library(randomForest)
 library(RColorBrewer)
 library(readr)
 library(rpart)       # performing regression trees
@@ -37,6 +37,7 @@ library(tidyverse)
 library(treeshap)
 library(viridis)
 library(xgboost)
+library(openxlsx2)   # reading BRFSS workbooks
 
 
 
