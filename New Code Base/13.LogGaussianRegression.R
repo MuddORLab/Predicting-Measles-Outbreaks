@@ -14,6 +14,18 @@ train <- train %>% dplyr::select(-c("enrollment", "population", "outbreak")) # W
 X <- as.matrix(train)
 y <- outbreak_log
 
+# Save fold info as vector
+n_samples <- length(unlist(folds))
+
+# 2. Initialize the vector
+foldid <- integer(n_samples)
+
+# 3. Assign the fold index to each corresponding row
+for (i in seq_along(folds)) {
+  foldid[folds[[i]]] <- i
+}
+
+
 # Start with full list of candidates
 candidates <- colnames(X)
 cols_to_drop <- c()
@@ -57,24 +69,60 @@ dat_scaled[continuous_cols] <- scale(dat_scaled[continuous_cols])
 # 2. Create model matrix
 X_mat <- model.matrix(y ~ . - 1, data = dat_scaled)
 
+# 3. Define grid of alpha values to search
+alpha_grid <- seq(0, 1, by = 0.1)
+
+# 4. Iterate over alpha grid and record results
+results <- data.frame()
+
+set.seed(100)
+for (a in alpha_grid) {
+  # Fit CV model for current alpha
+  cv_fit <- cv.glmnet(
+    x = X_mat, 
+    y = dat_scaled$y, 
+    family = "gaussian",
+    alpha = a,
+    foldid = foldid,
+    type.measure =  "deviance" # Or "auc"
+  )
+  
+  # Identify min cross-validated deviance and associated lambda
+  min_dev <- min(cv_fit$cvm)
+  best_lam <- cv_fit$lambda.min
+  
+  # Store metrics
+  results <- rbind(results, data.frame(
+    alpha = a,
+    lambda = best_lam,
+    cv_error = min_dev
+  ))
+}
+
+# 5. Extract optimal alpha and lambda
+best_row <- results[which.min(results$cv_error), ]
+print("Optimal Parameters:")
+print(best_row)
+
+
+
 # 3. Fit Gaussian model using cross-validation
-cv_gaussian <- cv.glmnet(
+final_model <- glmnet(
   x = X_mat, 
   y = dat_scaled$y, 
   family = "gaussian", 
-  alpha = 1
+  alpha = best_row$alpha,
+  lambda = best_row$lambda
 )
 
-# # 4. Extract active variables at lambda.1se
-# coefs <- coef(cv_gaussian, s = "lambda.1se")
-# selected_vars <- rownames(coefs)[coefs[, 1] != 0]
-# selected_vars <- setdiff(selected_vars, "(Intercept)")
+# View non-zero coefficients
+coef(final_model)
+sum(coef(final_model)[-1, ] != 0)
 
-# No variables are selected when we do this, so we use lambda.min instead
 
 # 4b. Extract active variables at lambda.min
 # Extract at lambda.min instead of lambda.1se
-coefs_min <- coef(cv_gaussian, s = "lambda.min")
+coefs_min <- coef(final_model)
 selected_vars_min <- rownames(coefs_min)[coefs_min[, 1] != 0]
 selected_vars_min <- setdiff(selected_vars_min, "(Intercept)")
 
@@ -93,28 +141,8 @@ summary(final_step_lm)
 vif_values <- car::vif(final_step_lm)
 print(vif_values)
 
-# 8. Residual plots
-# Set the plot window to a 2x2 grid
-par(mfrow = c(2, 2))
-
-# Plot all 4 diagnostic plots at once
-png("results/regress_GLM_resids.png", width = 6, height = 4, units = "in", res = 300)
-plot(final_step_lm)
-dev.off()
-
-# Reset your layout back to default (1x1) when done
-par(mfrow = c(1, 1))
-
-# 9. Run prediction on test data
-test$y      <- log(test$outbreak+1)
-test$enrollment_log <- log(test$enrollment+1)
-test_scaled <- test
-continuous_cols_test <- setdiff(names(test_scaled), "y")
-test_scaled[continuous_cols_test] <- scale(test_scaled[continuous_cols_test])
-
-
+# COMPUTE PREDICTION METRICS ON TRAINING SET
 pred_tr   <- predict(final_step_lm, newdata = dat_scaled,   type = "response")
-pred_test <- predict(final_step_lm, newdata = test_scaled, type = "response")
 
 metrics_vec <- function(obs, pred, model, label) {
   #theta <- sigma(model)
@@ -128,6 +156,38 @@ metrics_vec <- function(obs, pred, model, label) {
     #mean_ll  = mean(dnbinom(obs, size = theta, mu = pred, log = TRUE))
   )
 }
+
+print(metrics_vec(dat_scaled$y,   pred_tr,   final_step_lm, "train (in-sample)"))
+
+
+
+
+
+
+
+# 8. Residual plots
+# Set the plot window to a 2x2 grid
+# Plot all 4 diagnostic plots at once
+png("results/regress_GLM_resids.png", width = 6, height = 4, units = "in", res = 300)
+par(mfrow = c(2, 2))
+
+plot(final_step_lm)
+dev.off()
+
+# Reset your layout back to default (1x1) when done
+par(mfrow = c(1, 1))
+
+# 9. Run prediction on test data
+test$y      <- log(test$outbreak+1)
+test$enrollment_log <- log(test$enrollment+1)
+test_scaled <- test
+continuous_cols_test <- setdiff(names(test_scaled), "y")
+
+test_scaled[continuous_cols_test] <- scale(test_scaled[continuous_cols_test])
+
+
+pred_test <- predict(final_step_lm, newdata = test_scaled, type = "response")
+
 
 perf <- rbind(
   metrics_vec(dat_scaled$y,   pred_tr,   final_step_lm, "train (in-sample)"),
