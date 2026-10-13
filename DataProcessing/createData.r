@@ -110,7 +110,9 @@ df2025 <- df2025 %>%
   left_join(population, by = "County") %>%
   inner_join(phr_conv, by = "County") %>%
   left_join(texas_counties, by = "County") %>%
-  left_join(svi, by = "County")
+  left_join(svi, by = "County")%>%
+  mutate(density = population / AREA_SQMI) %>%
+  select(-AREA_SQMI)
 
 write_csv(df2025, here("data", "datasets", "Clustering_Dataset.csv"))
 
