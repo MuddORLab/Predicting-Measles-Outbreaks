@@ -245,41 +245,43 @@ p_test
 
 df_fore <- broom.mixed::tidy(final_step_lm, effects = "fixed", conf.int = TRUE)
 df_fore <- subset(df_fore, term != "(Intercept)")
-label_map <- c("cve" = "Conscientious vaccine exemption (%)",
-               "mammogram_past_2_yrs_40_ia_yes" = "Mammogram uptake (%, age 40+)",
-               "poor_mental_health_14_days_14_or_more_days_pct_diff" = "Poor mental health (%)",
-               "ep_nohsdp" = "No high-school diploma (%)",
-               "enrollment_log" = "Log enrollments")
-unmatched <- setdiff(df_fore$term, names(label_map))
-if (length(unmatched)) message("No label for: ", paste(unmatched, collapse = ", "))
-#df_fore$label <- recode(df_fore$term, label_map)
-df_fore$label <- label_map[df_fore$term]
-df_fore$direction <- ifelse(df_fore$estimate > 0, "Increases case counts", "Decreases case counts")
-df_fore$stars <- symnum(df_fore$p.value, corr = FALSE, na = FALSE,
-                        cutpoints = c(0, 0.001, 0.01, 0.05, 0.1, 1),
-                        symbols = c("***", "**", "*", ".", "")) |> as.character()
-df_fore$annot <- sprintf("beta == %.2f ~ 'p = %.4f %s'",
-                         df_fore$estimate, df_fore$p.value, df_fore$stars)
-df_fore$label <- factor(df_fore$label, levels = df_fore$label[order(df_fore$estimate)])
-p <- ggplot(df_fore, aes(x = estimate, y = label, color = direction)) +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
-  geom_errorbar(aes(xmin = conf.low, xmax = conf.high),
-                 height = 0.2, linewidth = 0.7) +
-  geom_point(size = 3.5) +
-  geom_text(aes(label = annot), vjust = -1.1, size = 5, show.legend = FALSE, parse = TRUE) +
-  #scale_x_log10(expand = expansion(mult = c(0.05, 0.25))) +
-  scale_y_discrete(labels = function(x) str_wrap(x, width = 14)) +
-  scale_color_manual(values = c("Increases case counts" = "#D85A30",
-                                "Decreases case counts" = "#378ADD")) +
-  labs(x = NULL, y = NULL, color = NULL) +
-  theme_minimal(base_size = 20) +
-  theme(panel.grid.minor = element_blank(),
-        legend.position = "top")+
-  theme(panel.grid.minor = element_blank(),
-        legend.position = "top",
-        plot.caption  = element_text(size = 16, hjust = 0))
 
-p
+# ############ NEED TO UPDATE THIS WITH CURRENT VARIABLES SELECTED BY MODEL ######################
+# label_map <- c("cve" = "Conscientious vaccine exemption (%)",
+#                "mammogram_past_2_yrs_40_ia_yes" = "Mammogram uptake (%, age 40+)",
+#                "poor_mental_health_14_days_14_or_more_days_pct_diff" = "Poor mental health (%)",
+#                "ep_nohsdp" = "No high-school diploma (%)",
+#                "enrollment_log" = "Log enrollments")
+# unmatched <- setdiff(df_fore$term, names(label_map))
+# if (length(unmatched)) message("No label for: ", paste(unmatched, collapse = ", "))
+# #df_fore$label <- recode(df_fore$term, label_map)
+# df_fore$label <- label_map[df_fore$term]
+# df_fore$direction <- ifelse(df_fore$estimate > 0, "Increases case counts", "Decreases case counts")
+# df_fore$stars <- symnum(df_fore$p.value, corr = FALSE, na = FALSE,
+#                         cutpoints = c(0, 0.001, 0.01, 0.05, 0.1, 1),
+#                         symbols = c("***", "**", "*", ".", "")) |> as.character()
+# df_fore$annot <- sprintf("beta == %.2f ~ 'p = %.4f %s'",
+#                          df_fore$estimate, df_fore$p.value, df_fore$stars)
+# df_fore$label <- factor(df_fore$label, levels = df_fore$label[order(df_fore$estimate)])
+# p <- ggplot(df_fore, aes(x = estimate, y = label, color = direction)) +
+#   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
+#   geom_errorbar(aes(xmin = conf.low, xmax = conf.high),
+#                  height = 0.2, linewidth = 0.7) +
+#   geom_point(size = 3.5) +
+#   geom_text(aes(label = annot), vjust = -1.1, size = 5, show.legend = FALSE, parse = TRUE) +
+#   #scale_x_log10(expand = expansion(mult = c(0.05, 0.25))) +
+#   scale_y_discrete(labels = function(x) str_wrap(x, width = 14)) +
+#   scale_color_manual(values = c("Increases case counts" = "#D85A30",
+#                                 "Decreases case counts" = "#378ADD")) +
+#   labs(x = NULL, y = NULL, color = NULL) +
+#   theme_minimal(base_size = 20) +
+#   theme(panel.grid.minor = element_blank(),
+#         legend.position = "top")+
+#   theme(panel.grid.minor = element_blank(),
+#         legend.position = "top",
+#         plot.caption  = element_text(size = 16, hjust = 0))
+# 
+# p
 
 ggsave("results/regress_GLM_sigvars.pdf", p, width = 9, height = 6)
 saveRDS(final_step_lm, "results/regress_GLM_model.rds")

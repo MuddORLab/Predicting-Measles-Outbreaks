@@ -145,10 +145,13 @@ stopifnot(sum(is.na(test)) == 0)
 cat("Train rows:", nrow(train), "| Cols:", ncol(train), "\n")
 cat("Test rows:",  nrow(test),  "| Cols:", ncol(test),  "\n")
 
+# Train rows: 187 | Cols: 250 
+# Test rows: 62 | Cols: 250 
+
 
 
 ###############################################
-# CREATE REGRESSION FOLDS (NO SMOTE)
+# CREATE REGRESSION FOLDS (NO SMOTE): 5 folds for regression
 ###############################################
 
 # Create folds
@@ -215,6 +218,9 @@ cat("Train rows:", nrow(trainclass), "| Cols:", ncol(trainclass), "\n")
 cat("Test rows:",  nrow(testclass),  "| Cols:", ncol(testclass),  "\n")
 
 
+# Train rows: 188 | Cols: 250                                                                                        
+# Test rows: 61 | Cols: 250 
+
 ##################
 
 
@@ -234,12 +240,16 @@ names(trainclass_smote)[names(trainclass_smote) == "class"] <- "outbreak"
 trainclass_smote$outbreak <- as.logical(trainclass_smote$outbreak)
 cat("\nClass balance after SMOTE:\n")
 print(table(trainclass_smote$outbreak))
+
+# FALSE  TRUE 
+# 176   168 
+
 head(trainclass_smote)
 
 
 
 
-# Folds for cross validation
+# Folds for cross validation;  10 folds for classification
 set.seed(4)
 folds_class <- createFolds(trainclass_smote$outbreak, k=10)
 

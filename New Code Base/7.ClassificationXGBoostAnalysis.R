@@ -83,6 +83,10 @@ for(i in 1:nrow(param_grid)){
 
 print(results_xgb)
 
+# First Row:
+#         max_depth  eta cutoff precision precision_std    recall recall_std  accuracy accuracy_std
+# 1           3     0.01    0.2 0.8987960    0.03722862 0.9941176 0.01860163 0.9416654   0.02023112
+
 
 p_xgb <- high(precision, df = results_xgb) * high(recall) * high(accuracy)
 res_xgb <- psel(results_xgb, p_xgb)
@@ -129,12 +133,13 @@ score_xgb <- score_pareto(res_xgb$precision, res_xgb$recall, res_xgb$accuracy, r
 res_xgb$score <- score_xgb
 print(res_xgb)
 
+#       max_depth  eta cutoff precision precision_std    recall recall_std  accuracy accuracy_std     score
+# 2         3     0.40    0.2 0.9406089    0.05221518 0.9941176 0.01860163 0.9647746   0.02750661 0.7612348
+# 4         7     0.35    0.2 0.9501892    0.03930362 0.9882353 0.02480218 0.9680621   0.02126964 0.7635356
+# 3         5     0.30    0.4 0.9675095    0.04490848 0.9823529 0.02841446 0.9739496   0.02139147 0.7629159
+# 1         3     0.15    0.5 0.9774510    0.02912594 0.9764706 0.04112976 0.9768908   0.01816306 0.7637166
 
-#   max_depth  eta cutoff precision precision_std    recall recall_std  accuracy accuracy_std     score
-# 2         3 0.40    0.2 0.9406089    0.05221518 0.9941176 0.01860163 0.9647746   0.02750661 0.7612348
-# 4         7 0.35    0.2 0.9501892    0.03930362 0.9882353 0.02480218 0.9680621   0.02126964 0.7635356
-# 3         5 0.30    0.4 0.9675095    0.04490848 0.9823529 0.02841446 0.9739496   0.02139147 0.7629159
-# 1         3 0.15    0.5 0.9774510    0.02912594 0.9764706 0.04112976 0.9768908   0.01816306 0.7637166
+
 
 # boos: The algorithm draws a bootstrap sample of the training data in each iteration using the weights for each observation. 
 # Misclassified or harder-to-predict samples receive higher weights, meaning they are 
@@ -173,6 +178,11 @@ pred_xgb <- as.numeric(predict(boost_model, dtest)>= cutoff)
 boost_table <- table(Actual = y_test, Predicted = pred_xgb)
 print(boost_table)
 
+#         Predicted
+# Actual  0  1
+# 0       57  1
+# 1       2  1
+
 # Calculate Precision, Accuracy, and recall
 TP <- boost_table[2, 2] # True Positives 
 TN <- boost_table[1, 1] # True Negatives 
@@ -185,6 +195,8 @@ precision   <- TP / (TP + FP)               # amount of correct positive predict
 
 print(c(accuracy, recall, precision))
 
+#0.9508197 0.3333333 0.5000000
+
 # importance graph
 importance_matrix <- xgb.importance(model = boost_model)
 # xgb.plot.importance(importance_matrix)
@@ -193,6 +205,19 @@ importance_matrix$Feature
 #saving variables models used
 print(importance_matrix)
 
+# TOP TEN:
+#                                                       Feature         Gain        Cover   Frequency
+#                                                       <char>        <num>        <num>       <num>
+#   1:                              overweight_or_obese_yes_pct_diff 2.713772e-01 0.0981994655 0.010282776
+# 2:                                                    enrollment 1.862800e-01 0.1018587156 0.066838046
+# 3:                                                  ep_otherrace 1.299037e-01 0.1314852843 0.077120823
+# 4:                                                any_cancer_yes 7.252910e-02 0.0270961930 0.003856041
+# 5:                          routine_checkup_within_the_past_year 6.199256e-02 0.0485180905 0.007712082
+# 6:                                                memory_loss_no 4.555132e-02 0.0182807135 0.002570694
+# 7:                                      health_care_coverage_yes 3.723176e-02 0.0286694129 0.006426735
+# 8:                                                       ep_aian 3.293574e-02 0.0651782414 0.047557841
+# 9:                                                       ep_nhpi 1.572289e-02 0.0451675293 0.037275064
+# 10:                                                     pct_black 1.393161e-02 0.0410065281 0.075835476
 
 
 print("Boost:")

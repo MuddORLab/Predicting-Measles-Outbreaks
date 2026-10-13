@@ -195,10 +195,10 @@ dev.off()
 ctree_table <- table(Actual = test$outbreak, Predicted = pred_dt)
 print(ctree_table)
 
-# Predicted
+#         Predicted
 # Actual  FALSE TRUE
-# FALSE    53    4
-# TRUE      3    2
+# FALSE    56    2
+# TRUE      1    2
 
 # Calculate Precision, Accuracy, and recall
 TP <- ctree_table[2, 2] # True Positives 
@@ -214,13 +214,13 @@ print(accuracy)
 print(recall)
 print(precision)
 
-# > accuracy
-# [1] 0.8870968
-# > recall
-# [1] 0.4
-# > precision
-# [1] 0.3333333
-
+# > print(accuracy)
+# [1] 0.9508197
+# > print(recall)
+# [1] 0.6666667
+# > print(precision)
+# [1] 0.5
+# > 
 
 #### WARNING ABOUT VARIABLE.IMPORTANCE. IT USES THE FULL TREE, NOT THE PRUNED TREE.
 #### HIGH IMPORTANCE VARIABLES MIGHT NOT APPEAR IN THE PRUNED TREE DUE TO 
@@ -232,6 +232,19 @@ importance_df <- data.frame(
 )
 
 print(importance_df)
+
+## HERE ARE THE TOP TEN:
+#         Variable Importance
+# 1         overweight_or_obese_yes_pct_diff   62.98584
+# 2                       current_smoker_yes   55.03617
+# 3       bmi_3_categories_recommended_range   54.42466
+# 4                  overweight_or_obese_yes   54.42466
+# 5       bmi_4_categories_recommended_range   53.81315
+# 6       bmi_5_categories_recommended_range   53.81315
+# 7                               enrollment   31.55805
+# 8                               population   26.70297
+# 9                                  density   25.08461
+# 10                          any_cancer_yes   15.12046
 
 # True positives: 
 # Regular classification tree
@@ -263,7 +276,7 @@ write_csv(false_negatives, "results/class_tree_FNresults.csv")
 write_csv(importance_df, "results/class_tree_important_vars.csv")
 write_csv(res, "results/class_tree_best_combos.csv")
 write_csv(results, "results/class_tree_paramtune_results.csv")
-saveRDS(dtree_model, "results/class_tree_model.rds")
+saveRDS(ctree_model, "results/class_tree_model.rds")
 
 
 

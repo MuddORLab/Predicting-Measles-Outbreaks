@@ -55,30 +55,23 @@ for(m in mtrys){
 
 print(results_rf)
 # First row
-# mtry cutoff precision precision_std    recall recall_std  accuracy accuracy_std
-# 1     5    0.2 0.9763399    0.03069469 0.9176471 0.06904634 0.9481513   0.03244479
+#     mtry cutoff precision precision_std    recall recall_std  accuracy accuracy_std
+# 1     5    0.2 0.9823529    0.03970286 0.8992647 0.06845654 0.9416705   0.03670114
 
-# Best by recall
-best_rf <- results_rf[which.max(results_rf$recall), ]
-print(best_rf)
-
-
-# mtry cutoff precision precision_std    recall recall_std  accuracy accuracy_std
-# 12   15    0.5 0.9554459    0.03426694 0.9764706 0.04112976 0.9654622   0.02246998
 
 p_rf <- high(precision, df = results_rf) * high(recall) * high(accuracy)
 res_rf <- psel(results_rf, p_rf)
 print(res_rf)
 
-#     mtry cutoff precision   precision_std    recall   recall_std  accuracy    accuracy_std
-# 16   20     0.5 0.9610015    0.03670211     0.9764706 0.04112976 0.9684034   0.02499818
-# 17   25     0.2 1.0000000    0.00000000     0.9235294 0.07362739 0.9625210   0.03582632
-# 19   25     0.4 0.9780358    0.03771632     0.9705882 0.04159452 0.9742017   0.02502907
-# 20   25     0.5 0.9616959    0.03627119     0.9764706 0.04112976 0.9683193   0.01617414
-# 21   30     0.2 1.0000000    0.00000000     0.9235294 0.07867609 0.9625210   0.03827442
-# 24   30     0.5 0.9610015    0.03670211     0.9764706 0.04112976 0.9684034   0.02499818
-# 26   35     0.3 0.9944444    0.01756821     0.9647059 0.04960436 0.9799160   0.02355757
-# 38   50     0.3 0.9944444    0.01756821     0.9647059 0.04960436 0.9799160   0.02355757
+#     mtry cutoff precision precision_std    recall recall_std  accuracy accuracy_std
+# 9    15    0.2 1.0000000    0.00000000 0.9102941 0.07008261 0.9563764   0.03397308
+# 14   20    0.3 0.9835913    0.03628299 0.9525735 0.05415641 0.9680621   0.02517545
+# 15   20    0.4 0.9780358    0.03771632 0.9702206 0.03140939 0.9737764   0.01665710
+# 17   25    0.2 0.9933333    0.02108185 0.9161765 0.07524151 0.9563764   0.03922547
+# 19   25    0.4 0.9780358    0.03771632 0.9702206 0.03140939 0.9737764   0.01665710
+# 23   30    0.4 0.9780358    0.03771632 0.9702206 0.03140939 0.9737764   0.01665710
+# 32   40    0.5 0.9665979    0.03803005 0.9764706 0.03037634 0.9710924   0.01933463
+# 37   50    0.2 0.9933333    0.02108185 0.9161765 0.05791786 0.9563764   0.03153443
 
 # Create the actual convex hull for the full results vector
 hull_mat <- as.matrix(results_rf[, c("precision", "recall", "accuracy")])
@@ -115,27 +108,34 @@ score_pareto <- function(prec, rec, acc, precsd, recsd, accsd) {
 
 score_rf <- score_pareto(res_rf$precision, res_rf$recall, res_rf$accuracy, res_rf$precision_std, res_rf$recall_std, res_rf$accuracy_std)
 res_rf$score <- score_rf
-res_rf
+print(res_rf)
 
 
-#  mtry cutoff precision precision_std    recall recall_std  accuracy accuracy_std     score
-# 1   20    0.5 0.9610015    0.03670211 0.9764706 0.04112976 0.9684034   0.02499818 0.7566234
-# 3   25    0.5 0.9616959    0.03627119 0.9764706 0.04112976 0.9683193   0.01617414 0.7585204
-# 2   25    0.4 0.9780358    0.03771632 0.9705882 0.04159452 0.9742017   0.02502907 0.7574268
-# 5   35    0.3 0.9944444    0.01756821 0.9647059 0.04960436 0.9799160   0.02355757 0.7610839
-# 4   30    0.2 1.0000000    0.00000000 0.9235294 0.07867609 0.9625210   0.03827442 0.7343028
+#    mtry cutoff precision precision_std    recall recall_std  accuracy accuracy_std     score
+# 4   40    0.5 0.9665979    0.03803005 0.9764706 0.03037634 0.9710924   0.01933463 0.7610194
+# 3   20    0.4 0.9780358    0.03771632 0.9702206 0.03140939 0.9737764   0.01665710 0.7608631
+# 2   20    0.3 0.9835913    0.03628299 0.9525735 0.05415641 0.9680621   0.02517545 0.7466054
+# 5   50    0.2 0.9933333    0.02108185 0.9161765 0.05791786 0.9563764   0.03153443 0.7301229
+# 1   15    0.2 1.0000000    0.00000000 0.9102941 0.07008261 0.9563764   0.03397308 0.7295638
 
-# From this, mtry=35 and cutoff=0.3 seems like a good choice.
+# From this, mtry=40 and cutoff=0.5 seems like a good choice.
 
 
-c = 0.3 #how many trees need to agree  .... was 0.4
+c = 0.5 #how many trees need to agree  .... was 0.4
 
 set.seed(12345)
-rforest_model <- randomForest(outbreak ~ ., data = train, ntree = 500, mtry = 35, importance = TRUE)
+rforest_model <- randomForest(outbreak ~ ., data = train, ntree = 500, mtry = 40, importance = TRUE)
 
 pred_rf <- predict(rforest_model, newdata = test, type = "class", cutoff=c(c, 1-c))
 rforest_table <- table(Actual = test$outbreak, Predicted = pred_rf)
 print(rforest_table)
+
+
+### Confusion Matrix
+#         Predicted
+# Actual  0  1
+# 0       57  1
+#1        2  1
 
 # Calculate Precision, Accuracy, and recall
 TP <- rforest_table[2, 2] # True Positives 
@@ -149,12 +149,8 @@ precision   <- TP / (TP + FP)               # amount of correct positive predict
 
 print(c(accuracy, recall,precision))
 
-#> accuracy
-# [1] 0.9193548
-# > recall
-# [1] 0.2
-# > precision
-# [1] 0.5
+#print(c(accuracy, recall,precision))
+#[1] 0.9508197 0.3333333 0.5000000
 
 # Mean decreased accuracy basically says if a variable is omitted, how much does the mean accuracy decrease by
 # Mean decreased gini measures how often the varaible is used to slip data into classes 
@@ -162,6 +158,19 @@ imp_matrix <- importance(rforest_model)
 ordered_imp <- imp_matrix[order(imp_matrix[, 3], decreasing = TRUE), , drop = FALSE]
 
 print(ordered_imp)
+### HERE ARE THE FIRST TEN ENTRIES
+#                                                                   0           1           MeanDecreaseAccuracy MeanDecreaseGini
+# enrollment                                                     11.7919995 15.78460303           15.8385091     9.2610256833
+# ep_otherrace                                                    6.4546121 15.73276454           15.5145896     6.0480981987
+# population                                                     11.1914379 15.28244781           15.2666515     8.4398835980
+# density                                                        11.1393112 13.97066361           14.2221618     8.0500784681
+# ep_aian                                                         2.0817981 11.05798569           11.0119743     4.2756615808
+# ep_hburd                                                        2.1665255 11.02566765           10.9077672     2.5946194725
+# ep_asian                                                        4.7819319  9.07238140            9.5576876     1.4480081200
+# pct_uninsured                                                  -0.7446758  9.52923827            9.2304535     1.1888482790
+# overweight_or_obese_yes_pct_diff                                8.5552401  7.96408717            9.1951185     8.0925136551
+# ep_munit                                                        1.7082544  9.17924384            8.9789406     2.0898331480
+
 
 
 # True positives: 
