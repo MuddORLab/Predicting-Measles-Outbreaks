@@ -139,7 +139,7 @@ print(res_xgb)
 # 3         5     0.30    0.4 0.9675095    0.04490848 0.9823529 0.02841446 0.9739496   0.02139147 0.7629159
 # 1         3     0.15    0.5 0.9774510    0.02912594 0.9764706 0.04112976 0.9768908   0.01816306 0.7637166
 
-
+# FROM THIS, MAX_DEPTH=3 AND ETA=0.15 AND CUTOFF=0.5 SEEM TO BE A GOOD CHOICE.
 
 # boos: The algorithm draws a bootstrap sample of the training data in each iteration using the weights for each observation. 
 # Misclassified or harder-to-predict samples receive higher weights, meaning they are 
@@ -239,7 +239,7 @@ print(fp_xgb)
 
 # export FN results (merged_with_svi):
 write_csv(false_negatives_xgb, "results/class_xgb_FNresults.csv")
-write.csv(importance_matrix, "results/class_xgb_important_vars.csv")
+write.csv(importance_matrix, "results/class_xgb_important_vars.csv", row.names=FALSE)
 saveRDS(boost_model, "results/class_xgb_model.rds")
 write_csv(results_xgb, "results/class_xgb_paramtune_results.csv")
 write_csv(res_xgb, "results/class_xgb_best_combos.csv")

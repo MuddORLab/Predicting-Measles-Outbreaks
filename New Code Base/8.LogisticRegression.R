@@ -140,7 +140,7 @@ print(best_row)
 # 11     1 0.004224175 0.4993514
 
 
-# 6. Fit final model with optimal alpha and lambda
+# 6. Fit model with optimal alpha and lambda
 final_model <- glmnet(
   x = x,
   y = y,
@@ -151,10 +151,41 @@ final_model <- glmnet(
 
 # View non-zero coefficients
 coef(final_model)
-sum(coef(final_model)[-1, ] != 0)
+print(sum(coef(final_model)[-1, ] != 0))
+
 
 # > sum(coef(final_model)[-1, ] != 0)
 # [1] 25
+
+
+# 4b. Extract active variables 
+coefs_min <- coef(final_model)
+selected_vars_min <- rownames(coefs_min)[coefs_min[, 1] != 0]
+selected_vars_min <- setdiff(selected_vars_min, "(Intercept)")
+
+cat("Variables selected:\n")
+print(selected_vars_min)
+
+# [1] "cve"                                                 "pct_black"                                          
+# [3] "pct_uninsured"                                       "pct_college"                                        
+# [5] "binge_drinking_yes"                                  "poor_physical_health_14_day_14_or_more_days"        
+# [7] "suicide_attempt_no"                                  "frequency_of_smoking_every_day_pct_diff"            
+# [9] "heavy_drinking_no_pct_diff"                          "last_dentist_visit_within_the_past_2_years_pct_diff"
+# [11] "overweight_or_obese_yes_pct_diff"                    "pneumonia_shot_18_yes_pct_diff"                     
+# [13] "ep_age65"                                            "ep_sngpnt"                                          
+# [15] "ep_limeng"                                           "ep_munit"                                           
+# [17] "ep_mobile"                                           "ep_crowd"                                           
+# [19] "ep_groupq"                                           "ep_asian"                                           
+# [21] "ep_aian"                                             "ep_nhpi"                                            
+# [23] "ep_twomore"                                          "ep_otherrace"                                       
+# [25] "density"                                            
+
+
+print(final_model)
+# Call:  glmnet(x = x, y = y, family = "binomial", alpha = best_row$alpha,      lambda = best_row$lambda) 
+# 
+# Df  %Dev   Lambda
+# 1 25 73.97 0.004224
 
 # CONFUSION MATRIX
 preds <- predict(final_model, newx=testX, type= "class")
@@ -185,8 +216,44 @@ precision   <- TP / (TP + FP)               # amount of correct positive predict
 
 
 print(c(accuracy, recall, precision))
-
 # [1] 0.9508197 0.0000000       NaN
+
+df_fore <- broom.mixed::tidy(final_model, effects = "fixed", conf.int = TRUE)
+print(df_fore, n=sum(coef(final_model) != 0))
+
+# A tibble: 26 × 5
+# term                                                 step estimate  lambda dev.ratio
+# <chr>                                               <dbl>    <dbl>   <dbl>     <dbl>
+#   1 (Intercept)                                             1 -1.34    0.00422     0.740
+# 2 cve                                                     1  0.922   0.00422     0.740
+# 3 pct_black                                               1 -0.438   0.00422     0.740
+# 4 pct_uninsured                                           1  0.308   0.00422     0.740
+# 5 pct_college                                             1 -1.63    0.00422     0.740
+# 6 binge_drinking_yes                                      1 -0.561   0.00422     0.740
+# 7 poor_physical_health_14_day_14_or_more_days             1 -0.00596 0.00422     0.740
+# 8 suicide_attempt_no                                      1 -0.271   0.00422     0.740
+# 9 frequency_of_smoking_every_day_pct_diff                 1 -0.773   0.00422     0.740
+# 10 heavy_drinking_no_pct_diff                              1  1.30    0.00422     0.740
+# 11 last_dentist_visit_within_the_past_2_years_pct_diff     1  0.394   0.00422     0.740
+# 12 overweight_or_obese_yes_pct_diff                        1  0.257   0.00422     0.740
+# 13 pneumonia_shot_18_yes_pct_diff                          1  1.89    0.00422     0.740
+# 14 ep_age65                                                1 -2.22    0.00422     0.740
+# 15 ep_sngpnt                                               1 -0.120   0.00422     0.740
+# 16 ep_limeng                                               1 -0.433   0.00422     0.740
+# 17 ep_munit                                                1  3.17    0.00422     0.740
+# 18 ep_mobile                                               1 -0.157   0.00422     0.740
+# 19 ep_crowd                                                1 -0.525   0.00422     0.740
+# 20 ep_groupq                                               1 -0.354   0.00422     0.740
+# 21 ep_asian                                                1 -2.57    0.00422     0.740
+# 22 ep_aian                                                 1 -0.0367  0.00422     0.740
+# 23 ep_nhpi                                                 1 -0.158   0.00422     0.740
+# 24 ep_twomore                                              1  0.0314  0.00422     0.740
+# 25 ep_otherrace                                            1 -0.310   0.00422     0.740
+# 26 density                                                 1 -0.983   0.00422     0.740
+
+saveRDS(final_model, "results/class_GLM_model.rds")
+write_csv(df_fore, "results/class_GLM_estimates.csv")
+
 
 # ## WORKED REALLY POORLY: NOW DO THE SAME WITH THE FULL MATRIX
 # # 4. Iterate over alpha grid and record results

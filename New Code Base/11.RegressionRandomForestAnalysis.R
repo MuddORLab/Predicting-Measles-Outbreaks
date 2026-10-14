@@ -71,13 +71,10 @@ for(i in 1:nrow(param_grid_rf)){
 
 print(results_rf_log)
 
+# FIRST ROW (FOR CHECKING REPRODUCIBILITY):
+#ntree mtry nodesize maxnodes      RMSE       MAE         R2
+#1     300   10        5        5 0.2890557 0.1484703 0.07553131
 
-best_rf_log <- results_rf_log[which.max(results_rf_log$R2), ]
-print(best_rf_log)
-
-
-# ntree mtry nodesize maxnodes      RMSE       MAE        R2
-# 276   300   20       10       15 0.2834374 0.1481219 0.1147234
 
 
 p_rf <- high(R2, df = results_rf_log) * low(RMSE) * low(MAE)
@@ -108,6 +105,13 @@ plot_ly(results_rf_log, x = ~R2, y = ~RMSE, z = ~MAE,
             marker = list(color = "red", size = 6))
 
 print(res_rf)
+#     ntree mtry nodesize maxnodes      RMSE       MAE        R2
+# 4     600   40        5        5 0.2843012 0.1450026 0.1084696
+# 2     300   50        5       10 0.2834105 0.1450278 0.1092629
+# 3     500   30        5       10 0.2819236 0.1453789 0.1104423
+# 1     300   20       10       15 0.2834374 0.1481219 0.1147234
+
+# FROM THIS WE CHOOSE ntree=300, mtry=20, nodesize=10, maxnodes=15
 
 # Random Forest with best params 
 set.seed(100)
@@ -137,11 +141,24 @@ imp <- importance(rforest_model_final)
 imp_sorted <- imp[order(imp[, "%IncMSE"], decreasing = TRUE), ]
 print(imp_sorted)
 
+#### TOP TEN:
+#                                                                 %IncMSE       IncNodePurity
+# enrollment                                                      4.925893e+00  6.167089e-01
+# density                                                         4.285889e+00  4.445293e-01
+# population                                                      3.972075e+00  5.888501e-01
+# ep_nohsdp                                                       3.745808e+00  9.306195e-01
+# ep_age65                                                        3.673960e+00  6.503291e-01
+# ep_hburd                                                        3.371923e+00  5.863674e-01
+# any_cancer_yes                                                  2.506315e+00  1.149544e-01
+# pct_college                                                     2.485825e+00  2.603315e-01
+# mammogram_yes                                                   2.337985e+00  5.397563e-02
+# obese_yes_pct_diff                                              2.202661e+00  7.006925e-02
+
 
 saveRDS(rforest_model_final, "results/regress_rf_model.rds")
-write.csv(imp_sorted, "results/regress_rf_important_vars.csv")
-write.csv(results_rf_log, "results/regress_rf_paramtune_results.csv")
-write.csv(res_rf, "results/regress_rf_best_combos.csv")
+write.csv(imp_sorted, "results/regress_rf_important_vars.csv", row.names=FALSE)
+write_csv(results_rf_log, "results/regress_rf_paramtune_results.csv")
+write_csv(res_rf, "results/regress_rf_best_combos.csv")
 
 
 # Restore outbreak to its correct values at the end if needed later.

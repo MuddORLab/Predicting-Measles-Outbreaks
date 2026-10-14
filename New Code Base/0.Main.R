@@ -23,7 +23,7 @@ source("2.LoadRawData.R")
 
 
 # Clustering
-source("3.Clustering.R")
+#source("3.Clustering.R")
 # Loads in SVI+census+other county-level data for clustering
 # Saves assigned clusters and cluster centers as presented in paper
 # Saves graphs

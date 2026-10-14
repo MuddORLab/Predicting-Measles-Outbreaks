@@ -210,9 +210,7 @@ accuracy    <- (TP + TN) / sum(ctree_table) # total accuracy
 recall <- TP / (TP + FN)                    # amount of positives guessed correctly out of all true positives
 precision   <- TP / (TP + FP)               # amount of correct positive predictions
 
-print(accuracy)
-print(recall)
-print(precision)
+print(c(accuracy, recall, precision))
 
 # > print(accuracy)
 # [1] 0.9508197

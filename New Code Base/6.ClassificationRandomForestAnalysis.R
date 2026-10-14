@@ -197,7 +197,7 @@ fp_rf
 write_csv(false_negatives_rf, "results/class_rf_FNresults.csv")
 
 #saving key variables that the rforest model uses
-write.csv(ordered_imp, "results/class_rf_important_vars.csv")
+write.csv(ordered_imp, "results/class_rf_important_vars.csv", row.names=FALSE)
 write_csv(results_rf, "results/class_rf_paramtune_results.csv")
 write_csv(res_rf, "results/class_rf_best_combos.csv")
 saveRDS(rforest_model, "results/class_rf_model.rds")

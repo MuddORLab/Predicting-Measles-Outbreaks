@@ -64,6 +64,10 @@ for(i in 1:nrow(param_grid_tree)){
 
 print(results_log)
 
+## FIRST ROW (FOR CHECKING REPRODUCIBILITY):
+#minsplit minbucket maxdepth      RMSE       MAE           R2
+#1        20        10       10 0.3189680 0.1702398 -0.204094179
+
 
 ##### IDENTIFYING BEST PARAMETER COMBINATIONS ######
 p <- high(R2, df = results_log) * low(RMSE) * low(MAE)
@@ -94,6 +98,9 @@ plot_ly(results_log, x = ~R2, y = ~RMSE, z = ~MAE,
             marker = list(color = "red", size = 6))
 
 print(res)
+
+#  minsplit minbucket maxdepth      RMSE       MAE         R2
+#1       50        20       30 0.2969915 0.1472333 0.01336778
 
 
 # Regression Tree with best params
@@ -144,10 +151,10 @@ print(importance_df)
 # 6                              bmi_3_categories_obese    2.49018
 
 
-write.csv(importance_df, "results/regress_tree_important_vars.csv")
+write_csv(importance_df, "results/regress_tree_important_vars.csv")
 saveRDS(dtree_model_final, "results/regress_tree_model.rds")
-write.csv(results_log, "results/regress_tree_paramtune_results.csv")
-write.csv(res, "results/regress_tree_best_combos.csv")
+write_csv(results_log, "results/regress_tree_paramtune_results.csv")
+write_csv(res, "results/regress_tree_best_combos.csv")
 
 
 # Restore outbreak to its correct values at the end if needed later.

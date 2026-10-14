@@ -104,6 +104,10 @@ best_row <- results[which.min(results$cv_error), ]
 print("Optimal Parameters:")
 print(best_row)
 
+# [1] "Optimal Parameters:"
+#     alpha   lambda  cv_error
+# 1     0   1.272759 0.4976459
+
 
 
 # 3. Fit Gaussian model using cross-validation
@@ -120,14 +124,22 @@ coef(final_model)
 sum(coef(final_model)[-1, ] != 0)
 
 
-# 4b. Extract active variables at lambda.min
-# Extract at lambda.min instead of lambda.1se
+# 4b. Extract active variables 
 coefs_min <- coef(final_model)
 selected_vars_min <- rownames(coefs_min)[coefs_min[, 1] != 0]
 selected_vars_min <- setdiff(selected_vars_min, "(Intercept)")
 
-cat("Variables selected at lambda.min:\n")
+cat("Variables selected:\n")
 print(selected_vars_min)
+
+# FIRST TEN PRINTED FOR REPRODUCIBILITY VERIFICATION:
+# Variables selected:
+#   [1] "cve"                                                            "pct_black"                                                     
+# [3] "pct_poverty"                                                    "pct_uninsured"                                                 
+# [5] "pct_college"                                                    "pct_foreign_born"                                              
+# [7] "bmi_3_categories_recommended_range"                             "hlth_affected_activ_5_days_5_or_more_days"                     
+# [9] "mammogram_past_2_yrs_40_ia_yes"                                 "pain_med_not_rx_no" 
+
 
 # 5. Refit unpenalized linear model (lm) on log-transformed response
 formula_lm <- as.formula(paste("y ~", paste(selected_vars_min, collapse = " + ")))
@@ -135,11 +147,59 @@ unpenalized_lm <- lm(formula_lm, data = dat_scaled)
 
 # 6. Perform Stepwise Selection (AIC)
 final_step_lm <- stepAIC(unpenalized_lm, direction = "both", trace = FALSE)
-summary(final_step_lm)
+print(summary(final_step_lm))
+
+# Call:
+#   lm(formula = y ~ cve + hlth_affected_activ_5_days_5_or_more_days + 
+#        pain_med_not_rx_no + reg_bp_check_yes + remove_teeth_1_to_5 + 
+#        routine_checkup_within_the_past_2_years + sigm_past_5_yrs_50_75_ia_no + 
+#        skin_cancer_no + ep_nohsdp + ep_age65 + ep_disabl + ep_sngpnt + 
+#        ep_limeng + enrollment_log, data = dat_scaled)
+# 
+# Residuals:
+#   Min      1Q  Median      3Q     Max 
+# -1.2473 -0.2918 -0.0711  0.1841  2.9078 
+# 
+# Coefficients:
+#   Estimate Std. Error t value Pr(>|t|)    
+# (Intercept)                                0.22999    0.04432   5.190 5.88e-07 ***
+#   cve                                        0.22664    0.04949   4.579 8.93e-06 ***
+#   hlth_affected_activ_5_days_5_or_more_days  0.38765    0.10259   3.779 0.000217 ***
+#   pain_med_not_rx_no                        -0.14813    0.06181  -2.396 0.017630 *  
+#   reg_bp_check_yes                          -0.44178    0.09343  -4.729 4.69e-06 ***
+#   remove_teeth_1_to_5                       -0.44790    0.10374  -4.318 2.66e-05 ***
+#   routine_checkup_within_the_past_2_years   -0.39098    0.09774  -4.000 9.38e-05 ***
+#   sigm_past_5_yrs_50_75_ia_no                0.49215    0.11137   4.419 1.75e-05 ***
+#   skin_cancer_no                             0.46084    0.09553   4.824 3.08e-06 ***
+#   ep_nohsdp                                  0.36730    0.08202   4.478 1.37e-05 ***
+#   ep_age65                                  -0.12270    0.07115  -1.724 0.086425 .  
+# ep_disabl                                  0.12258    0.06057   2.024 0.044521 *  
+#   ep_sngpnt                                 -0.11550    0.05707  -2.024 0.044544 *  
+#   ep_limeng                                 -0.22576    0.08015  -2.817 0.005422 ** 
+#   enrollment_log                             0.34476    0.07560   4.560 9.67e-06 ***
+#   ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# Residual standard error: 0.606 on 172 degrees of freedom
+# Multiple R-squared:  0.4099,	Adjusted R-squared:  0.3618 
+# F-statistic: 8.533 on 14 and 172 DF,  p-value: 7.49e-14
 
 # 7. Compute VIFs safely
 vif_values <- car::vif(final_step_lm)
 print(vif_values)
+
+
+#### VIFS
+# cve hlth_affected_activ_5_days_5_or_more_days                        pain_med_not_rx_no 
+# 1.240671                                  5.330684                                  1.935018 
+# reg_bp_check_yes                       remove_teeth_1_to_5   routine_checkup_within_the_past_2_years 
+# 4.420581                                  5.450337                                  4.837944 
+# sigm_past_5_yrs_50_75_ia_no                            skin_cancer_no                                 ep_nohsdp 
+# 6.281507                                  4.621805                                  3.407389 
+# ep_age65                                 ep_disabl                                 ep_sngpnt 
+# 2.564040                                  1.857847                                  1.649715 
+# ep_limeng                            enrollment_log 
+# 3.253732                                  2.894619 
 
 # COMPUTE PREDICTION METRICS ON TRAINING SET
 pred_tr   <- predict(final_step_lm, newdata = dat_scaled,   type = "response")
@@ -160,7 +220,8 @@ metrics_vec <- function(obs, pred, model, label) {
 print(metrics_vec(dat_scaled$y,   pred_tr,   final_step_lm, "train (in-sample)"))
 
 
-
+#                set      n      rmse       mae  spearman      auc
+#   1   train (in-sample) 187 0.5812034 0.3784004 0.4437151 0.989071
 
 
 
@@ -195,7 +256,9 @@ perf <- rbind(
 )
 print(perf, row.names = FALSE, digits = 4)
 
-
+# set                     n   rmse    mae spearman    auc
+# train (in-sample)     187 0.5812 0.3784   0.4437 0.9891
+# test (out-of-sample)    62 0.7577 0.4498   0.4119 0.7167
 
 
 train_df   <- data.frame(pred = pred_tr,   obs = dat_scaled$y)
@@ -244,7 +307,28 @@ p_test
 
 
 df_fore <- broom.mixed::tidy(final_step_lm, effects = "fixed", conf.int = TRUE)
-df_fore <- subset(df_fore, term != "(Intercept)")
+print(df_fore)
+df_fore_temp <- subset(df_fore, term != "(Intercept)")
+
+
+# A tibble: 15 × 7
+# term                                      estimate std.error statistic     p.value conf.low conf.high
+# <chr>                                        <dbl>     <dbl>     <dbl>       <dbl>    <dbl>     <dbl>
+#   1 (Intercept)                                  0.230    0.0443      5.19 0.000000588  0.143     0.317  
+# 2 cve                                          0.227    0.0495      4.58 0.00000893   0.129     0.324  
+# 3 hlth_affected_activ_5_days_5_or_more_days    0.388    0.103       3.78 0.000217     0.185     0.590  
+# 4 pain_med_not_rx_no                          -0.148    0.0618     -2.40 0.0176      -0.270    -0.0261 
+# 5 reg_bp_check_yes                            -0.442    0.0934     -4.73 0.00000469  -0.626    -0.257  
+# 6 remove_teeth_1_to_5                         -0.448    0.104      -4.32 0.0000266   -0.653    -0.243  
+# 7 routine_checkup_within_the_past_2_years     -0.391    0.0977     -4.00 0.0000938   -0.584    -0.198  
+# 8 sigm_past_5_yrs_50_75_ia_no                  0.492    0.111       4.42 0.0000175    0.272     0.712  
+# 9 skin_cancer_no                               0.461    0.0955      4.82 0.00000308   0.272     0.649  
+# 10 ep_nohsdp                                    0.367    0.0820      4.48 0.0000137    0.205     0.529  
+# 11 ep_age65                                    -0.123    0.0712     -1.72 0.0864      -0.263     0.0177 
+# 12 ep_disabl                                    0.123    0.0606      2.02 0.0445       0.00304   0.242  
+# 13 ep_sngpnt                                   -0.116    0.0571     -2.02 0.0445      -0.228    -0.00285
+# 14 ep_limeng                                   -0.226    0.0802     -2.82 0.00542     -0.384    -0.0675 
+# 15 enrollment_log                               0.345    0.0756      4.56 0.00000967   0.196     0.494   
 
 # ############ NEED TO UPDATE THIS WITH CURRENT VARIABLES SELECTED BY MODEL ######################
 # label_map <- c("cve" = "Conscientious vaccine exemption (%)",
@@ -252,18 +336,18 @@ df_fore <- subset(df_fore, term != "(Intercept)")
 #                "poor_mental_health_14_days_14_or_more_days_pct_diff" = "Poor mental health (%)",
 #                "ep_nohsdp" = "No high-school diploma (%)",
 #                "enrollment_log" = "Log enrollments")
-# unmatched <- setdiff(df_fore$term, names(label_map))
+# unmatched <- setdiff(df_fore_temp$term, names(label_map))
 # if (length(unmatched)) message("No label for: ", paste(unmatched, collapse = ", "))
-# #df_fore$label <- recode(df_fore$term, label_map)
-# df_fore$label <- label_map[df_fore$term]
-# df_fore$direction <- ifelse(df_fore$estimate > 0, "Increases case counts", "Decreases case counts")
-# df_fore$stars <- symnum(df_fore$p.value, corr = FALSE, na = FALSE,
+# #df_fore_temp$label <- recode(df_fore_temp$term, label_map)
+# df_fore_temp$label <- label_map[df_fore_temp$term]
+# df_fore_temp$direction <- ifelse(df_fore_temp$estimate > 0, "Increases case counts", "Decreases case counts")
+# df_fore_temp$stars <- symnum(df_fore_temp$p.value, corr = FALSE, na = FALSE,
 #                         cutpoints = c(0, 0.001, 0.01, 0.05, 0.1, 1),
 #                         symbols = c("***", "**", "*", ".", "")) |> as.character()
-# df_fore$annot <- sprintf("beta == %.2f ~ 'p = %.4f %s'",
-#                          df_fore$estimate, df_fore$p.value, df_fore$stars)
-# df_fore$label <- factor(df_fore$label, levels = df_fore$label[order(df_fore$estimate)])
-# p <- ggplot(df_fore, aes(x = estimate, y = label, color = direction)) +
+# df_fore_temp$annot <- sprintf("beta == %.2f ~ 'p = %.4f %s'",
+#                          df_fore_temp$estimate, df_fore_temp$p.value, df_fore_temp$stars)
+# df_fore_temp$label <- factor(df_fore_temp$label, levels = df_fore_temp$label[order(df_fore_temp$estimate)])
+# p <- ggplot(df_fore_temp, aes(x = estimate, y = label, color = direction)) +
 #   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
 #   geom_errorbar(aes(xmin = conf.low, xmax = conf.high),
 #                  height = 0.2, linewidth = 0.7) +
@@ -283,9 +367,6 @@ df_fore <- subset(df_fore, term != "(Intercept)")
 # 
 # p
 
-ggsave("results/regress_GLM_sigvars.pdf", p, width = 9, height = 6)
+#ggsave("results/regress_GLM_sigvars.pdf", p, width = 9, height = 6)
 saveRDS(final_step_lm, "results/regress_GLM_model.rds")
-
-
-train <-read_csv("intermed_regress_data/train_clean.csv")  # Restore train if needed later.
-test <- read_csv("intermed_regress_data/test_clean.csv") # Restore test if needed later.
+write_csv(df_fore, "results/regress_GLM_estimates.csv")
