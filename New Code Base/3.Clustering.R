@@ -11,9 +11,6 @@ stopifnot(
   all(is.finite(df$density))
 )
 
-#df$density <- df$population*1.0/df$AREA_SQMI
-#df$density <- df$population/df$a
-#df <- df %>% select(-c("County", "PHR", "outbreak", "AREA_SQMI"), -starts_with("M_"), -starts_with("MP_"), -starts_with("E_"), -starts_with("EPL_"), -starts_with("SPL_"), -starts_with("RPL_"), -starts_with("F_"))
 df <- df %>% filter(!County %in% c("mcculloch", "mclennan", "mcmullen", "dewitt", "loving"))
 df_raw <- df
 df <- df %>% select(-c("County", "phr", "outbreak"), -starts_with("M_"), -starts_with("MP_"), -starts_with("E_"), -starts_with("EPL_"), -starts_with("SPL_"), -starts_with("RPL_"), -starts_with("F_"))
@@ -120,7 +117,6 @@ centroids <- km$centers
 print(centroids)
 # see what loads heavily on PC1
 pca_out <- prcomp(df)
-names(pca_out)
 
 
 
@@ -128,7 +124,8 @@ names(pca_out)
 # attach cluster assignments
 df$cluster <- km$cluster
 df$county <- df_raw$County
-df
+df_raw$county <- df_raw$County
+
 # look at means of original variables by cluster
 sum <- df %>%
   group_by(cluster) %>%
@@ -142,25 +139,46 @@ cluster_label <- df %>% select(c(cluster, county))
 # 1. Load data
 df_map <- cluster_label
 
-# 2. Load Texas shapefile directly from Census zip URL
-texas <- st_read("/vsizip//vsicurl/https://www2.census.gov/geo/tiger/GENZ2021/shp/cb_2021_us_county_5m.zip") %>%
-  filter(STATEFP == "48")
+# 2. Load Texas shapefile directly from Census zip URL and standardize county names
+#texas <- st_read("/vsizip//vsicurl/https://www2.census.gov/geo/tiger/GENZ2021/shp/cb_2021_us_county_5m.zip") %>%
+#  filter(STATEFP == "48")
+texas <-  st_read("/vsizip/input_data/cb_2021_us_county_5m.zip") %>% 
+  filter(STATEFP == "48") %>%
+  mutate(county = tolower(str_trim(NAME))) 
+#%>%
+#  filter(!county %in% c("mcculloch", "mclennan", "mcmullen", "dewitt", "loving"))
 
-# 3. Standardize names
-texas <- texas %>%
-  mutate(county = tolower(str_trim(NAME))) %>% 
-  filter(!county %in% c("mcculloch", "mclennan", "mcmullen", "dewitt", "loving"))
+#################### ADD 2023 METROPOLITAN REGION ENCODING ################
+# https://www.cdc.gov/nchs/data-analysis-tools/urban-rural.html #
+# https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/OAE/urbanrural/NCHSUR2023_3156.csv #
 
-#df_map <- df_map %>%
-#  mutate(
-#    county = str_replace(county, regex(" County", ignore_case = TRUE), ""),
-#    county = str_trim(county)
-#  )
+urb_rur <- read_csv("input_data/NCHSUR2023_3156.csv")
+# unify county names
+clean_county <- function(x) {
+  x %>%
+    str_to_lower() %>%
+    str_remove(regex(",?\\s*texas$", ignore_case = TRUE)) %>%
+    str_remove(regex("\\s+county$", ignore_case = TRUE)) %>%
+    str_squish()
+}
 
-# 4. Merge shapefile with data & convert cluster to categorical/factor
+urb_rur$county <- clean_county(urb_rur$CTYNAME)
+urb_rur <- urb_rur %>% 
+  filter(ST_ABBREV == "TX") 
+#%>% 
+#  filter(!county %in% c("mcculloch", "mclennan", "mcmullen", "dewitt", "loving"))
+
+
+
 merged <- texas %>%
   left_join(df_map, by = "county") %>%
-  mutate(cluster = as.character(cluster))
+  left_join(urb_rur %>% select(county, CODE2023), by = "county") %>%
+  left_join(df_raw %>% select(county, outbreak), by="county") %>%
+  mutate(cluster = as.factor(as.integer(cluster)),
+         CODE2023 = as.factor(as.integer(CODE2023))
+  )
+
+
 
 # 5. Plot using ggplot2
 ggplot(data = merged) +
@@ -180,14 +198,6 @@ ggplot(data = merged) +
 
 
 
-
-# Ensure numeric to character conversion
-merged <- merged %>%
-  mutate(
-    cluster = as.character(as.integer(cluster)),
-    CODE2023 = as.character(as.integer(CODE2023))
-  )
-
 # Define labels
 code_labels <- c(
   '1' = 'Large central metro',
@@ -198,39 +208,137 @@ code_labels <- c(
   '6' = 'Noncore'
 )
 
-# Extract unique valid values sorted
-clusters <- sort(unique(na.omit(merged$cluster)))
-codes    <- sort(unique(na.omit(merged$CODE2023)))
+
+
+
+
+# 1. Enforce ALL 6 codes (1:6) and ALL 3 clusters (1:3)
+codes    <- 1:6
+clusters <- 1:3
 
 # Define color palettes matching matplotlib ('Reds', 'Greens', 'Blues')
 cmap_names <- c('Reds', 'Greens', 'Blues')
 
-# Create blending function for colors
+# 2. Vectorized color blending function
 get_color <- function(cluster, code) {
-  if (is.na(cluster) || is.na(code) || !(cluster %in% clusters) || !(code %in% codes)) {
-    return(rgb(0.83, 0.83, 0.83))
-  }
+  # Create output vector initialized with grey for missing/invalid cases
+  out_colors <- rep(rgb(0.83, 0.83, 0.83), length(cluster))
   
-  # Shade level calculation matching python formula: 0.95 - 0.65 * i / (N - 1)
-  code_idx <- match(code, codes) - 1
-  n_codes  <- length(codes)
+  # Logical mask for valid observations
+  valid <- !is.na(cluster) & !is.na(code) & (cluster %in% clusters) & (code %in% codes)
+  
+  if (!any(valid)) return(out_colors)
+  
+  # Compute color for valid rows
+  cl_val   <- as.numeric(as.character(cluster[valid]))
+  code_val <- as.numeric(as.character(code[valid]))
+  
+  code_idx  <- match(code_val, codes) - 1
+  n_codes   <- length(codes)
   shade_val <- if (n_codes > 1) 0.95 - 0.65 * (code_idx / (n_codes - 1)) else 0.95
   
-  # Map cluster index to palette name
-  cl_idx <- match(cluster, clusters)
-  pal_fun <- colorRampPalette(brewer.pal(9, cmap_names[cl_idx]))
+  cl_idx  <- match(cl_val, clusters)
   
-  # Interpolate color based on shade value
-  pal_fun(100)[round(shade_val * 99) + 1]
+  # Calculate colors per row
+  for (i in seq_along(cl_idx)) {
+    pal_fun <- colorRampPalette(brewer.pal(9, cmap_names[cl_idx[i]]))
+    out_colors[which(valid)[i]] <- pal_fun(100)[round(shade_val[i] * 99) + 1]
+  }
+  
+  out_colors
 }
 
-# Apply color mapping
-merged <- merged %>%
-  rowwise() %>%
-  mutate(`_clr` = get_color(cluster, CODE2023)) %>%
-  ungroup()
+# -------------------------------------------------------------------------
+# 3. Build full legend reference table with cluster header rows
+# -------------------------------------------------------------------------
+headers_df <- data.frame(
+  CODE2023    = NA, 
+  cluster     = clusters,
+  colorcode   = "transparent", 
+  lbl_text    = "",
+  label       = paste0("**<span style='font-size:10pt;'>Cluster ", clusters, "</span>**"),
+  group_label = paste("Cluster", clusters),
+  key         = paste0("HEADER_CLUSTER_", clusters),
+  is_header   = TRUE,
+  stringsAsFactors = FALSE
+)
 
-# Extract point centroids for outbreak points
+legend_df <- expand.grid(CODE2023 = codes, cluster = clusters) %>%
+  arrange(cluster, CODE2023) %>%
+  mutate(
+    colorcode   = get_color(cluster, CODE2023),
+    lbl_text    = ifelse(as.character(CODE2023) %in% names(code_labels), 
+                         code_labels[as.character(CODE2023)], 
+                         paste("CODE", CODE2023)),
+    label       = paste0("&nbsp;&nbsp;", CODE2023, " · ", lbl_text),
+    group_label = paste("Cluster", cluster),
+    key         = paste0("Cluster ", cluster, " - ", CODE2023, " · ", lbl_text),
+    is_header   = FALSE
+  )
+
+full_legend_list <- list()
+for (cl in clusters) {
+  full_legend_list[[paste0("h_", cl)]] <- headers_df %>% filter(cluster == cl)
+  full_legend_list[[paste0("d_", cl)]] <- legend_df %>% filter(cluster == cl)
+}
+
+other_header_df <- data.frame(
+  CODE2023    = NA, 
+  cluster     = NA,
+  colorcode   = "transparent", 
+  lbl_text    = "",
+  label       = "**<span style='font-size:10pt;'>Other</span>**", 
+  group_label = "Other",
+  key         = "HEADER_OTHER", 
+  is_header   = TRUE, 
+  stringsAsFactors = FALSE
+)
+
+no_data_df <- data.frame(
+  CODE2023    = NA, 
+  cluster     = NA,
+  colorcode   = "grey80", 
+  lbl_text    = "No Data",
+  label       = "&nbsp;&nbsp;No Data", 
+  group_label = "Other",
+  key         = "No Data", 
+  is_header   = FALSE, 
+  stringsAsFactors = FALSE
+)
+
+full_legend_list[["h_no"]] <- other_header_df
+full_legend_list[["d_no"]] <- no_data_df
+
+full_legend <- bind_rows(full_legend_list)
+
+all_keys  <- full_legend$key
+color_map <- setNames(full_legend$colorcode, full_legend$key)
+label_map <- setNames(full_legend$label, full_legend$key)
+
+# Build explicit named vectors for border stroke colors
+border_map <- setNames(
+  ifelse(full_legend$is_header, "transparent", "white"),
+  full_legend$key
+)
+
+
+# -------------------------------------------------------------------------
+# 4. Map 'merged' data frame to factor keys
+# -------------------------------------------------------------------------
+merged <- merged %>%
+  mutate(
+    lbl_text = ifelse(as.character(CODE2023) %in% names(code_labels), 
+                      code_labels[as.character(CODE2023)], 
+                      paste("CODE", CODE2023)),
+    key_str  = ifelse(is.na(cluster) | is.na(CODE2023), 
+                      "No Data", 
+                      paste0("Cluster ", cluster, " - ", CODE2023, " · ", lbl_text)),
+    plot_key = factor(key_str, levels = all_keys)
+  )
+
+# -------------------------------------------------------------------------
+# 5. Extract point centroids for outbreaks
+# -------------------------------------------------------------------------
 pts <- merged %>%
   filter(!is.na(outbreak) & outbreak > 0) %>%
   mutate(
@@ -239,43 +347,59 @@ pts <- merged %>%
     `_y` = coords[, 2]
   )
 
-vmax <- max(pts$outbreak, na.rm = TRUE)
 
-# Custom legend construction matching grouped Python legend structure
-legend_df <- expand.grid(CODE2023 = codes, cluster = clusters, stringsAsFactors = FALSE) %>%
-  arrange(cluster, CODE2023) %>%
-  rowwise() %>%
-  mutate(
-    `_clr` = get_color(cluster, CODE2023),
-    label = paste0("  ", CODE2023, " · ", ifelse(CODE2023 %in% names(code_labels), code_labels[CODE2023], paste("CODE", CODE2023))),
-    group_label = paste("Cluster", cluster)
-  )
 
-# Plotting using ggplot2
+# -------------------------------------------------------------------------
+# 6. Final Plot
+# -------------------------------------------------------------------------
+png("results/cluster_Texas_map.png", width = 9, height = 8, units = "in", res = 300)
+
+
 ggplot() +
-  # Base map
-  geom_sf(data = merged, aes(fill = `_clr`), color = "white", size = 0.4) +
-  scale_fill_identity() +
-  
-  # Outbreak points
-  geom_point(data = pts, aes(x = `_x`, y = `_y`, size = outbreak),
-             shape = 21, fill = "navajowhite", color = "white", stroke = 0.8, alpha = 0.75) +
-  scale_size_continuous(range = c(2, 12)) +
-  
-  # Outbreak labels with text stroke effect
-  geom_shadowtext(data = pts, aes(x = `_x`, y = `_y`, label = as.integer(outbreak)),
-                  color = "white", bg.color = "black", bg.r = 0.15,
-                  size = 2.5, fontface = "bold") +
-  
-  # Aesthetics and layout
-  labs(title = "Cluster Map with Outbreak Counts") +
+  geom_sf(data = merged, aes(fill = plot_key), color = "white", linewidth = 0.4, show.legend = TRUE) +
+  scale_fill_manual(
+    values   = color_map,
+    labels   = label_map,
+    breaks   = all_keys,
+    drop     = FALSE,
+    na.value = "grey80",
+    name     = "Urbanization Level"
+  ) +
+  geom_point(
+    data = pts, 
+    aes(x = `_x`, y = `_y`, size = outbreak),
+    shape = 21, fill = "navajowhite", color = "white", stroke = 0.8, alpha = 0.75
+  ) +
+  #scale_size_continuous(range = c(4, 12), name = "Measles Cases") +
+  scale_size_continuous(range = c(4, 12), guide = "none") +
+  geom_text(
+    data = pts, 
+    aes(x = `_x`, y = `_y`, label = as.integer(outbreak)),
+    color = "black", size = 2.8, fontface = "bold"
+  ) +
+  labs(title = "Cluster Map with Measles Case Counts") +
   theme_void() +
   theme(
-    plot.title = element_text(size = 15, face = "bold", hjust = 0.5, margin = margin(b = 12)),
-    legend.position = "right"
+    #plot.margin      = margin(t = 10, r = 20, b = 10, l = 10, unit = "pt"), # Added margin (Top, Right, Bottom, Left)
+    plot.margin = ggplot2::margin(10, 20, 10, 10, unit="pt"),
+    plot.title       = element_text(size = 15, face = "bold", hjust = 0.5, margin = ggplot2::margin(0, 0, 12, 0)),
+    legend.position  = "right",
+    legend.key.size  = unit(0.4, "cm"),
+    legend.text      = element_markdown(size = 8),
+    legend.title     = element_text(size = 10, face = "bold")
+  ) +
+  guides(
+    fill = guide_legend(
+      override.aes = list(
+        shape = NA,
+        color = border_map[all_keys]
+      ),
+      ncol=1
+    )#,
+    #size = guide_legend(order = 2)
   )
 
-
+dev.off()
 
 write.csv(cluster_label, "results/cluster_labels.csv", row.names = FALSE)
 write.csv(sum, "results/cluster_means.csv", row.names = FALSE)

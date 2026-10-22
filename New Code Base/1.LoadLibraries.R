@@ -8,6 +8,7 @@ library(dplyr)       # data wrangling
 library(factoextra)  # for visualizing cluster results
 library(geometry)
 library(ggplot2)
+library(ggtext)
 library(glmnet)
 library(glmmTMB)
 library(gridExtra)
