@@ -1,196 +1,124 @@
 rm(list=ls())
+source(here::here("New Code Base", "1.LoadLibraries.R"))
 
+#### NEED TO ADD SOME OF THE EARLIER DATA PREPARATION STEPS,
+#### E.G., HOW WAS merged_with_svi.csv CREATED ORIGINALLY?
+# locate proj and load packages 
+here::i_am("New Code Base/2.LoadRawData.R")
 
-############## CREATING merged_with_svi.csv
-# Ported from Methods/Data Processing/3CreatingDatasets.ipynb
+# unify county names
+clean_county <- function(x) {
+  x %>%
+    str_to_lower() %>%
+    str_remove(regex(",?\\s*texas$", ignore_case = TRUE)) %>%
+    str_remove(regex("\\s+county$", ignore_case = TRUE)) %>%
+    str_squish()
+}
 
-datapath <- "../data/"
-rawpath  <- paste0(datapath, "raw/")
+# import data
+outbreak <- read.csv(here("data", "raw", "base", "count.csv")) %>%
+  mutate(County = clean_county(County))
+cve <- read.csv(here("data", "raw", "base", "CVE.csv")) %>%
+  mutate(County = clean_county(County))
+phr_conv <- read.csv(here("data", "raw", "brfss", "phr_conversion.csv"))%>%
+  rename(phr = 'PHR') %>%
+  mutate(County = clean_county(County))
+df <- cve %>% inner_join(outbreak, by = "County", suffix = c("_cve", "_out"))
 
-
-#################################################
-# Base county data
-#################################################
-
-# Load raw files
-outbreak   <- read.csv(paste0(rawpath, "base/count.csv"))
-cve        <- read.csv(paste0(rawpath, "base/CVE.csv"))
-enrollment <- read.csv(paste0(rawpath, "base/enrollment.csv"))
-population <- read.csv(paste0(rawpath, "base/population.csv"))
-phr_conv   <- read.csv(paste0(rawpath, "brfss/phr_conversion.csv"))
-
-# "ANDERSON COUNTY" -> "Anderson"
+# create basic dataset(CVE, outbreak, enrollment, population, phr)
+df2025 <- df %>%
+transmute(
+    County,
+    cve = `X2025_cve`,
+    outbreak = `X2025_out`
+  )
+df2025$cve <- gsub("%", "", df2025$cve)
+df2025$cve <- as.numeric(df2025$cve)
+enrollment <- read.csv(here("data", "raw", "base", "enrollment.csv"))
+population <- read.csv(here("data", "raw", "base", "population.csv")) %>% 
+  rename(population = `X2025_pop`) %>%
+  mutate(County = clean_county(County))
 enrollment <- enrollment %>%
-  mutate(County = str_to_lower(County),
-         County = str_remove(County, " county"),
-         County = str_to_title(str_trim(County))) %>%
-  filter(County != "Grand Total")
+  rename(enrollment = `Enrollment.Sum`) %>%
+  mutate(County = clean_county(County)) %>%
+  filter(County != "grand total")
 
-# Keep 2025 CVE and outbreak counts
-county_data <- cve %>%
-  inner_join(outbreak, by = "County", suffix = c("_cve", "_out")) %>%
-  transmute(County,
-            cve      = as.numeric(gsub("%", "", X2025_cve)),
-            outbreak = X2025_out)
 
-# Add enrollment, population and PHR
-county_data <- county_data %>%
+# County level ACS data
+census_key <- Sys.getenv("CENSUS_API_KEY")
+
+if (!nzchar(census_key)) {
+  stop("CENSUS_API_KEY was not found. Restart R after editing .Renviron.")
+}
+
+# 2024 ACS variables
+acs_vars <- c(
+  pct_hispanic     = "DP05_0090PE",
+  pct_black        = "DP05_0097PE",
+  pct_white        = "DP05_0096PE",
+  pct_poverty      = "DP03_0128PE",
+  pct_uninsured    = "DP03_0099PE",
+  pct_college      = "DP02_0068PE",
+  median_income    = "DP03_0062E",
+  pct_foreign_born = "DP02_0094PE"
+)
+
+# Download and clean the data
+texas_counties <- get_acs(
+  geography = "county",
+  state      = "TX",
+  year       = 2024,
+  survey     = "acs5",
+  variables  = acs_vars,
+  key        = census_key
+) %>%
+  transmute(
+    County = clean_county(NAME),
+    variable,
+    estimate
+  ) %>%
+  pivot_wider(
+    names_from  = variable,
+    values_from = estimate
+  ) %>%
+  rename(
+    pct_college      = DP02_0068P,
+    pct_foreign_born = DP02_0094P,
+    median_income    = DP03_0062,
+    pct_uninsured    = DP03_0099P,
+    pct_poverty      = DP03_0128P,
+    pct_hispanic     = DP05_0090P,
+    pct_white        = DP05_0096P,
+    pct_black        = DP05_0097P
+  )
+
+svi <- read_csv(here("data", "raw", "svi.csv")) %>%
+  mutate(County = clean_county(COUNTY)) %>%
+  select(-ST, -STATE, -ST_ABBR, -STCNTY, -COUNTY, -FIPS, -LOCATION, -GeoLevel, -Comparison)
+
+
+df2025 <- df2025 %>%
   left_join(enrollment, by = "County") %>%
   left_join(population, by = "County") %>%
   inner_join(phr_conv, by = "County") %>%
-  transmute(County     = str_to_title(County),
-            cve,
-            outbreak,
-            enrollment = Enrollment.Sum,
-            population = X2025_pop,
-            PHR)
+  left_join(texas_counties, by = "County") %>%
+  left_join(svi, by = "County")%>%
+  mutate(density = population / AREA_SQMI) %>%
+  select(-AREA_SQMI)
+
+write_csv(df2025, here("data", "datasets", "Clustering_Dataset.csv"))
+
+# merge with BRFSS data
+brfss <- read_csv(here("data", "raw", "brfss.csv"))
+
+finaldf <- df2025 |>
+  left_join(brfss, by = c("phr" = "PHR"))
+
+write_csv(finaldf, here("data", "datasets", "FullData.csv"))
 
 
-#################################################
-# Census data (ACS 5-year, 2024)
-#################################################
 
-acs_vars <- c(
-  pct_hispanic     = "DP05_0090PE",
-  pct_black        = "DP05_0045PE",
-  pct_white        = "DP05_0037PE",
-  pct_poverty      = "DP03_0119PE",
-  pct_uninsured    = "DP03_0099PE",
-  pct_college      = "DP02_0068PE",
-  median_income    = "DP03_0062PE",
-  pct_foreign_born = "DP02_0093PE"
-)
-
-# Pull from the Census API if CENSUS_API_KEY is set, else use saved file
-if (Sys.getenv("CENSUS_API_KEY") != "") {
-  texas_census <- get_acs(geography = "county", state = "TX",
-                          year = 2024, survey = "acs5",
-                          variables = acs_vars, output = "wide")
-
-  # "Anderson County, Texas" -> "Anderson", keep estimates only
-  texas_census <- texas_census %>%
-    mutate(County = str_to_lower(NAME),
-           County = str_remove(County, " county, texas"),
-           County = str_to_title(str_trim(County))) %>%
-    dplyr::select(County, all_of(names(acs_vars)))
-} else {
-  texas_census <- read_csv(paste0(datapath, "texas_census.csv"),
-                           show_col_types = FALSE)
-}
-
-
-#################################################
-# BRFSS data by PHR
-#################################################
-
-scraped_phrs <- c(1, 8, 11)               # 2014 values come from the scraped file
-pct_cols     <- LETTERS[seq(4, 24, by = 2)]  # % columns D, F, ..., X
-
-# Response labels (row 8) and Total row (row 10) of every sheet
-read_brfss <- function(year, phr) {
-  path <- paste0(rawpath, "brfss/", year, "_PHR", phr,
-                 "_BRFSS_Summary_Tables.xlsx")
-  wb <- wb_load(path, data_only = TRUE)
-  sheets <- setdiff(wb_get_sheet_names(wb), "Index")
-
-  bind_rows(lapply(sheets, function(s) {
-    x <- wb_to_df(wb, sheet = s, col_names = FALSE,
-                  skip_empty_rows = FALSE, skip_empty_cols = FALSE)
-    x[, setdiff(pct_cols, names(x))] <- NA
-    labels <- trimws(as.character(x["8", pct_cols]))
-    pcts   <- suppressWarnings(as.numeric(x["10", pct_cols]))
-    keep   <- !labels %in% c(NA, "NA", "", "None", "0")
-    tibble(sheet = s, response = labels[keep], phr = phr, pct = pcts[keep])
-  }))
-}
-
-# Load 2024 and 2014 workbooks
-records_2024 <- bind_rows(lapply(1:11, function(p) read_brfss(2024, p)))
-records_2014 <- bind_rows(lapply(setdiff(1:11, scraped_phrs),
-                                 function(p) read_brfss(2014, p)))
-
-# Load scraped 2014 values
-scraped_2014 <- read_csv(paste0(datapath, "created/brfss_scraped_2014.csv"),
-                         show_col_types = FALSE) %>%
-  filter(phr %in% scraped_phrs, !is.na(percent))
-
-# 2024 -> 2014 sheet/response names (built by name matching in 3CreatingDatasets.ipynb)
-name_map <- read_csv(paste0(datapath, "created/brfss_2014_2024_map.csv"),
-                     show_col_types = FALSE)
-
-
-#################################################
-# BRFSS values and 2014 -> 2024 % difference
-#################################################
-
-# 2014 Excel values under their 2024 names
-excel_2014 <- name_map %>%
-  inner_join(records_2014, by = c("sheet_2014" = "sheet",
-                                  "response_2014" = "response"),
-             relationship = "many-to-many") %>%
-  dplyr::select(sheet = sheet_2024, response = response_2024,
-                phr, v14_excel = pct)
-
-# Scraped 2014 values are named like "a_one_c_no"
-scraped_2014 <- scraped_2014 %>%
-  dplyr::select(scraped_var = variable, phr, v14_scraped = percent)
-
-# One row per variable and PHR, with 2024 and 2014 values
-brfss <- records_2024 %>%
-  distinct(sheet, response) %>%
-  crossing(phr = 1:11) %>%
-  mutate(variable    = paste(sheet, "-", response),
-         scraped_var = str_to_lower(str_replace_all(variable, "[^A-Za-z0-9]+", "_")),
-         scraped_var = str_remove_all(scraped_var, "^_+|_+$")) %>%
-  left_join(records_2024 %>% rename(v24 = pct),
-            by = c("sheet", "response", "phr")) %>%
-  left_join(excel_2014, by = c("sheet", "response", "phr")) %>%
-  left_join(scraped_2014, by = c("scraped_var", "phr"))
-
-# Percent difference from 2014 to 2024
-brfss <- brfss %>%
-  mutate(v14      = ifelse(phr %in% scraped_phrs, v14_scraped, v14_excel),
-         pct_diff = round((v24 - v14) / abs(v14) * 100, 4),
-         pct_diff = ifelse(v14 == 0, NA, pct_diff)) %>%
-  arrange(variable)
-
-# Wide format: one row per PHR
-brfss_values <- brfss %>%
-  dplyr::select(PHR = phr, variable, v24) %>%
-  pivot_wider(names_from = variable, values_from = v24)
-brfss_diffs <- brfss %>%
-  dplyr::select(PHR = phr, variable, pct_diff) %>%
-  pivot_wider(names_from = variable, values_from = pct_diff,
-              names_glue = "{variable}_pct_diff")
-brfss_phr <- left_join(brfss_values, brfss_diffs, by = "PHR")
-
-
-#################################################
-# SVI and final merge
-#################################################
-
-# Load SVI, drop ID columns
-svi <- read_csv(paste0(datapath, "svi_interactive_map.csv"),
-                show_col_types = FALSE) %>%
-  mutate(County = gsub(" County", "", COUNTY)) %>%
-  dplyr::select(-ST, -STATE, -ST_ABBR, -STCNTY, -COUNTY, -FIPS,
-                -LOCATION, -GeoLevel, -Comparison)
-
-# Merge county, census, BRFSS (by PHR) and SVI
-merged_with_svi <- county_data %>%
-  left_join(texas_census, by = "County") %>%
-  left_join(brfss_phr, by = "PHR") %>%
-  left_join(svi, by = "County") |>
-  clean_names()
-
-write_csv(merged_with_svi, paste0(datapath, "merged_with_svi.csv"))
-
-
-set.seed(100) # Set seed
-
-# Use the in-memory merged data (already cleaned) instead of re-reading the CSV
-merged <- merged_with_svi
-
+############## CLEANING merged_with_svi.csv
 # Data Cleaning
 drop_redundant_yn_features <- function(df) {
   # Get all column names
@@ -232,13 +160,20 @@ drop_redundant_yn_features <- function(df) {
   df[, !names(df) %in% cols_to_drop]
 }
 
+set.seed(100) # Set seed
 
+# Load & Clean Column Names
+# ############ UPDATE SO THAT YOU'RE NOT READING IN THE FILE AGAIN. SHOULD BE SAVED CLEANED. ############################
+# datapath <- "c:/Users/martonosi/Dropbox/research/measles project/Summer 2026 Code Base/Predicting-Measles-Outbreaks-main/data/"
+# #filename_mergedcounty <- paste(datapath, "merged_county_data.csv", sep="")
+# filename_mergedcounty <- paste(datapath, "merged_with_svi.csv", sep="")
+# merged <- read_csv(filename_mergedcounty, show_col_types = FALSE)|> clean_names()
+merged <- janitor::clean_names(finaldf)
 merged <- drop_redundant_yn_features(merged)
 
 #SVI specific
-merged <- merged %>% filter(!county %in% c("Mcculloch", "Mclennan", "Mcmullen", "Dewitt", "Loving"))
-merged$density <- merged$population*1.0/merged$area_sqmi
-merged <- merged %>% dplyr::select(-c("county", "phr", "area_sqmi"), -starts_with("m_"), -starts_with("mp_"), -starts_with("e_"), -starts_with("epl_"), -starts_with("spl_"), -starts_with("rpl_"), -starts_with("f_"))
+merged <- merged %>% filter(!county %in% c("mcculloch", "mclennan", "mcmullen", "dewitt", "loving"))
+merged <- merged %>% dplyr::select(-c("county", "phr"), -starts_with("m_"), -starts_with("mp_"), -starts_with("e_"), -starts_with("epl_"), -starts_with("spl_"), -starts_with("rpl_"), -starts_with("f_"))
 merged <- merged[,colSums(is.na(merged)) == 0]
 merged <- merged %>% dplyr::select(-c("ep_minrty", "ep_hisp", "ep_afam", "ep_pov150", "ep_uninsur"))
 
@@ -296,11 +231,16 @@ folds <- createFolds(train$outbreak , k = 5, list = TRUE)
 
 
 
-# Export to csv
-write_csv(train, "intermed_regress_data/train_clean.csv")
-write_csv(test,  "intermed_regress_data/test_clean.csv")
-saveRDS(folds, file = "intermed_regress_data/folds.rds")
+# # Export to csv
+# write_csv(train, "intermed_regress_data/train_clean.csv")
+# write_csv(test,  "intermed_regress_data/test_clean.csv")
+# saveRDS(folds, file = "intermed_regress_data/folds.rds")
+regress_dir <- here::here("New Code Base", "intermed_regress_data")
+dir.create(regress_dir, recursive = TRUE, showWarnings = FALSE)
 
+write_csv(train, file.path(regress_dir, "train_clean.csv"))
+write_csv(test, file.path(regress_dir, "test_clean.csv"))
+saveRDS(folds, file.path(regress_dir, "folds.rds"))
 
 ########################################
 # CREATE CLASSIFICATION DATA WITH SMOTE
@@ -386,8 +326,14 @@ head(trainclass_smote)
 set.seed(4)
 folds_class <- createFolds(trainclass_smote$outbreak, k=10)
 
-# Export to csv
-write_csv(trainclass_smote, "intermed_class_data/trainclass_smote.csv")
-write_csv(testclass,  "intermed_class_data/testclass.csv")
-saveRDS(folds_class, file = "intermed_class_data/folds_class.rds")
+# # Export to csv
+# write_csv(trainclass_smote, "intermed_class_data/trainclass_smote.csv")
+# write_csv(testclass,  "intermed_class_data/testclass.csv")
+# saveRDS(folds_class, file = "intermed_class_data/folds_class.rds")
 
+class_dir <- here::here("New Code Base", "intermed_class_data")
+dir.create(class_dir, recursive = TRUE, showWarnings = FALSE)
+
+write_csv(trainclass_smote, file.path(class_dir, "trainclass_smote.csv"))
+write_csv(testclass, file.path(class_dir, "testclass.csv"))
+saveRDS(folds_class, file.path(class_dir, "folds_class.rds"))
