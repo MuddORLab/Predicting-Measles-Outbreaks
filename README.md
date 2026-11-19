@@ -62,6 +62,7 @@ Visual Studio Code was primarily used and the following instructions are based o
    ```bash
    R
    install.packages("package name")
+   ```
 
 # Data Sets
 
@@ -111,3 +112,12 @@ Datasets: merged_data and merged_with_svi
 # Tech Stack
 - R
 - Python
+
+## County-only clustering pipeline
+
+1. Open `Methods/Kclustering/0county_level_data.ipynb` with the R kernel and run all cells. It uses the existing local county base, Census, and SVI CSVs to write `data/merged_county_data.csv`.
+2. Run `Methods/Kclustering/kclustering.ipynb` with the R kernel. Both notebooks locate the project from the root or their notebook folder.
+
+`merged_county_data.csv` contains one row for each of the 254 Texas counties, with county base, Census, and county SVI measurements. Regional BRFSS measurements are excluded. `PHR` is retained as metadata and excluded from clustering. The directly usable fields `area_sqmi` and `density = population / area_sqmi` (people per square mile) are placed beside `population` in the saved county file. County names are normalized consistently; the former four-county exclusion is removed.
+
+The source-preparation notebook remains at `Methods/Data Processing/3CreatingDatasets.ipynb`. The county-only pipeline consumes its existing exports without rerunning source downloads or the mixed R/Python BRFSS workflow. Existing `merged_data.csv` and `merged_with_svi.csv` remain available for other methods. Re-run clustering to refresh cluster exports after rebuilding the county dataset.
