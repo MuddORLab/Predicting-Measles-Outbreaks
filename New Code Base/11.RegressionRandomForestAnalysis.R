@@ -1,4 +1,7 @@
+# SET WORKING DIRECTORY TO THE DIRECTORY WHERE THIS FILE IS STORED.
 rm(list=ls())
+source("1.LoadLibraries.R")
+
 test <-read_csv("intermed_regress_data/test_clean.csv")
 #train_balanced <-read_csv("intermed_regress_data/train_balanced.csv")  # SMOTE IS NOT USED.
 train <-read_csv("intermed_regress_data/train_clean.csv")
@@ -73,7 +76,7 @@ print(results_rf_log)
 
 # FIRST ROW (FOR CHECKING REPRODUCIBILITY):
 #ntree mtry nodesize maxnodes      RMSE       MAE         R2
-#1     300   10        5        5 0.2890557 0.1484703 0.07553131
+#1     300   10        5        5 0.2874716 0.1479803 0.09024856
 
 
 
@@ -105,23 +108,22 @@ plot_ly(results_rf_log, x = ~R2, y = ~RMSE, z = ~MAE,
             marker = list(color = "red", size = 6))
 
 print(res_rf)
-#     ntree mtry nodesize maxnodes      RMSE       MAE        R2
-# 4     600   40        5        5 0.2843012 0.1450026 0.1084696
-# 2     300   50        5       10 0.2834105 0.1450278 0.1092629
-# 3     500   30        5       10 0.2819236 0.1453789 0.1104423
-# 1     300   20       10       15 0.2834374 0.1481219 0.1147234
+#ntree mtry nodesize maxnodes      RMSE       MAE        R2
+#1   400   20        5       10 0.2835852 0.1448968 0.1116527
+#3   600   30        5       10 0.2823460 0.1449875 0.1176721
+#2   500   30        5       10 0.2822363 0.1452772 0.1091640
 
-# FROM THIS WE CHOOSE ntree=300, mtry=20, nodesize=10, maxnodes=15
+# FROM THIS WE CHOOSE ntree=600, mtry=30, nodesize=5, maxnodes=10
 
 # Random Forest with best params 
 set.seed(100)
 rforest_model_final <- randomForest(
   outbreak ~ .,
   data     = train,
-  ntree    = 300, # was showing 700, which doesn't match paper
-  mtry     = 20, # was showing 20
-  nodesize = 10, # was showing 5
-  maxnodes = 15, # was showing 10
+  ntree    = 600, # was showing 700, which doesn't match paper
+  mtry     = 30, # was showing 20
+  nodesize = 5, # was showing 5
+  maxnodes = 10, # was showing 10
   importance = TRUE
 )
 
@@ -135,7 +137,7 @@ rf_mae    <- mean(abs(actual - pred_rf))
 rf_r2     <- 1 - sum((actual - pred_rf)^2) / sum((actual - mean(actual))^2)
 cat("Final Random Forest | RMSE:", round(rf_rmse,4), "MAE:", round(rf_mae,4), "R2:", round(rf_r2,4), "\n")
 
-#Final Random Forest | RMSE: 0.3102 MAE: 0.1742 R2: 0.226 
+#Final Random Forest | RMSE: 0.3191 MAE: 0.1768 R2: 0.181  
 
 imp <- importance(rforest_model_final)
 imp_sorted <- imp[order(imp[, "%IncMSE"], decreasing = TRUE), ]
@@ -143,16 +145,16 @@ print(imp_sorted)
 
 #### TOP TEN:
 #                                                                 %IncMSE       IncNodePurity
-# enrollment                                                      4.925893e+00  6.167089e-01
-# density                                                         4.285889e+00  4.445293e-01
-# population                                                      3.972075e+00  5.888501e-01
-# ep_nohsdp                                                       3.745808e+00  9.306195e-01
-# ep_age65                                                        3.673960e+00  6.503291e-01
-# ep_hburd                                                        3.371923e+00  5.863674e-01
-# any_cancer_yes                                                  2.506315e+00  1.149544e-01
-# pct_college                                                     2.485825e+00  2.603315e-01
-# mammogram_yes                                                   2.337985e+00  5.397563e-02
-# obese_yes_pct_diff                                              2.202661e+00  7.006925e-02
+#density                                                         5.967705e+00  7.246652e-01
+#enrollment                                                      5.689012e+00  5.579232e-01
+#population                                                      4.820979e+00  6.652588e-01
+#pct_college                                                     4.358573e+00  5.473947e-01
+#ep_nohsdp                                                       4.255401e+00  7.897755e-01
+#ep_otherrace                                                    3.781253e+00  2.136895e-01
+#last_dentist_visit_within_the_past_5_years_pct_diff             3.262616e+00  2.540216e-01
+#any_cancer_yes                                                  3.239913e+00  6.728133e-02
+#heavy_drinking_females_no_pct_diff                              3.204071e+00  2.068842e-01
+#sigm_past_5_yrs_age_50_75_no                                    3.186426e+00  6.296254e-02
 
 
 saveRDS(rforest_model_final, "results/regress_rf_model.rds")

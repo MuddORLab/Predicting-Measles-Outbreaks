@@ -1,4 +1,8 @@
+# SET WORKING DIRECTORY TO THE DIRECTORY WHERE THIS FILE IS STORED.
 rm(list=ls())
+source("1.LoadLibraries.R")
+
+
 test <-read_csv("intermed_class_data/testclass.csv")
 train <-read_csv("intermed_class_data/trainclass_smote.csv")
 folds <-readRDS("intermed_class_data/folds_class.rds")
@@ -59,8 +63,8 @@ for(j in 1:length(FNlosses)){
 
 print(results)
 # First row of results:
-# FNloss           cp       cp_std precision precision_std    recall recall_std  accuracy accuracy_std
-# 1     1.0 0.0006622517 0.0020942236 0.9362745    0.03236046 0.9470588 0.04340381 0.9420117   0.02734789
+#FNloss           cp       cp_std precision precision_std    recall recall_std  accuracy accuracy_std
+#1              1.0 0.0043046358 0.0114758444 0.8903782    0.05843220 0.9404412 0.05636722 0.9126687   0.04906392
 
 p <- high(precision, df = results) * high(recall) * high(accuracy)
 res <- psel(results, p)
@@ -105,12 +109,10 @@ res$score <- score_ctree
 
 print(res)
 
-#   FNloss          cp      cp_std precision precision_std    recall recall_std  accuracy accuracy_std     score
-# 3    6.9 0.003406974 0.002932293 0.9095270    0.04807037 0.9941176 0.01860163 0.9479781   0.03231110 0.7525786
-# 2    3.1 0.024936709 0.013869175 0.9322841    0.02142671 0.9764706 0.03037634 0.9536924   0.01968888 0.7554599
-# 1    1.6 0.003534750 0.002439249 0.9378397    0.03029642 0.9705882 0.03100272 0.9536924   0.01968888 0.7518384
+#FNloss         cp     cp_std precision precision_std    recall recall_std  accuracy accuracy_std     score
+#1    1.7 0.00443038 0.01401009  0.907807     0.0501763 0.9823529 0.03970286 0.9421747    0.0402898 0.7398586
 
-# FROM THIS WE CHOOSE LOSS LAMBDA = 3.1
+# FROM THIS WE CHOOSE LOSS LAMBDA = 1.7
 
 set.seed(91711)
 # set decision tree
@@ -119,7 +121,7 @@ ctree_model <- rpart(outbreak ~ ., data = train, method = "class",
 opt_cp        <- as.numeric(ctree_model$cptable[which.min(ctree_model$cptable[, "xerror"]), "CP"])[1]
 ctree_model <- prune(ctree_model, cp = opt_cp)
 print(opt_cp)
-# 0.03011364
+# 0.01647727
 
 # eval performance
 pred_dt <- predict(ctree_model, newdata = test, type = "class")
@@ -129,9 +131,14 @@ pred_dt <- predict(ctree_model, newdata = test, type = "class")
 ### PLOT DECISION TREE
 print(ctree_model$frame$var)
 
+# [1] "overweight_or_obese_yes_pct_diff" "<leaf>"                           "enrollment"                      
+#[4] "<leaf>"                           "pct_black"                        "<leaf>"                          
+#[7] "ep_otherrace"                     "<leaf>"                           "<leaf>"  
+
 var_descriptions <- c(
   "overweight_or_obese_yes_pct_diff" = "chg from 2014 in pct of people overweight or obese",
-  "flu_shot_18_64_yes" = "pct of people age 18-64 getting flu shot",
+  "pct_black" = "pct of people who are Black",
+  "ep_otherrace" = "est pct of people who are Other Race",
   "enrollment" = "school enrollments"
 )
 
@@ -146,8 +153,9 @@ print(node_vars)
 
 var_colors <- c(
   "overweight_or_obese_yes_pct_diff" = "skyblue",
-  "flu_shot_18_64_yes" = "salmon",
-  "enrollment" = "gold"
+  "pct_black" = "salmon",
+  "enrollment" = "gold",
+  "ep_otherrace"="purple"
 )
 
 mapped_var_colors <- var_colors
@@ -197,8 +205,8 @@ print(ctree_table)
 
 #         Predicted
 # Actual  FALSE TRUE
-# FALSE    56    2
-# TRUE      1    2
+# FALSE    55    3
+# TRUE      2    1
 
 # Calculate Precision, Accuracy, and recall
 TP <- ctree_table[2, 2] # True Positives 
@@ -212,13 +220,7 @@ precision   <- TP / (TP + FP)               # amount of correct positive predict
 
 print(c(accuracy, recall, precision))
 
-# > print(accuracy)
-# [1] 0.9508197
-# > print(recall)
-# [1] 0.6666667
-# > print(precision)
-# [1] 0.5
-# > 
+# [1] 0.9180328 0.3333333 0.2500000
 
 #### WARNING ABOUT VARIABLE.IMPORTANCE. IT USES THE FULL TREE, NOT THE PRUNED TREE.
 #### HIGH IMPORTANCE VARIABLES MIGHT NOT APPEAR IN THE PRUNED TREE DUE TO 
@@ -233,16 +235,16 @@ print(importance_df)
 
 ## HERE ARE THE TOP TEN:
 #         Variable Importance
-# 1         overweight_or_obese_yes_pct_diff   62.98584
-# 2                       current_smoker_yes   55.03617
-# 3       bmi_3_categories_recommended_range   54.42466
-# 4                  overweight_or_obese_yes   54.42466
-# 5       bmi_4_categories_recommended_range   53.81315
-# 6       bmi_5_categories_recommended_range   53.81315
-# 7                               enrollment   31.55805
-# 8                               population   26.70297
-# 9                                  density   25.08461
-# 10                          any_cancer_yes   15.12046
+#1    overweight_or_obese_yes_pct_diff 62.9858439
+#2  bmi_3_categories_recommended_range 55.0361743
+#3                  current_smoker_yes 55.0361743
+#4             overweight_or_obese_yes 55.0361743
+#5  bmi_4_categories_recommended_range 53.8131482
+#6  bmi_5_categories_recommended_range 53.8131482
+#7                          enrollment 31.5580529
+#8                          population 26.7029678
+#9                             density 25.0846061
+#10                       ep_otherrace 20.3243649
 
 # True positives: 
 # Regular classification tree

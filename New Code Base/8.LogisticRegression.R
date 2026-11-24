@@ -1,4 +1,8 @@
-rm(list = ls())
+# SET WORKING DIRECTORY TO THE DIRECTORY WHERE THIS FILE IS STORED.
+rm(list=ls())
+source("1.LoadLibraries.R")
+
+
 
 test <-read_csv("intermed_class_data/testclass.csv")
 train <-read_csv("intermed_class_data/trainclass_smote.csv")
@@ -49,14 +53,10 @@ for(i in 1:(length(candidates)-1)) {
 X <- X[, -unique(cols_to_drop), drop=FALSE]
 testX <- testX[, -unique(cols_to_drop), drop=FALSE]
 dim(X)
+#[1] 344  44
 dim(testX)
+#[1] 61 44
 #dim(X1)
-
-
-# > dim(X)
-# [1] 344  48
-# > dim(testX)
-# [1] 61 48
 
 
 
@@ -129,15 +129,19 @@ for (a in alpha_grid) {
   ))
 }
 
+# Warning message:
+#from glmnet C++ code (error code -94); Convergence for 94th lambda value not reached after maxit=100000 iterations; solutions for larger lambdas returned 
+
+
 # 5. Extract optimal alpha and lambda
 best_row <- results[which.min(results$cv_error), ]
 print("Optimal Parameters:")
 print(best_row)
 
 # [1] "Optimal Parameters:"
-# > print(best_row)
-#     alpha      lambda  cv_error
-# 11     1 0.004224175 0.4993514
+#> print(best_row)
+#   alpha      lambda  cv_error
+#2   0.1 0.002934465 0.4845936
 
 
 # 6. Fit model with optimal alpha and lambda
@@ -155,7 +159,7 @@ print(sum(coef(final_model)[-1, ] != 0))
 
 
 # > sum(coef(final_model)[-1, ] != 0)
-# [1] 25
+# [1] 42
 
 
 # 4b. Extract active variables 
@@ -166,26 +170,34 @@ selected_vars_min <- setdiff(selected_vars_min, "(Intercept)")
 cat("Variables selected:\n")
 print(selected_vars_min)
 
-# [1] "cve"                                                 "pct_black"                                          
-# [3] "pct_uninsured"                                       "pct_college"                                        
-# [5] "binge_drinking_yes"                                  "poor_physical_health_14_day_14_or_more_days"        
-# [7] "suicide_attempt_no"                                  "frequency_of_smoking_every_day_pct_diff"            
-# [9] "heavy_drinking_no_pct_diff"                          "last_dentist_visit_within_the_past_2_years_pct_diff"
-# [11] "overweight_or_obese_yes_pct_diff"                    "pneumonia_shot_18_yes_pct_diff"                     
-# [13] "ep_age65"                                            "ep_sngpnt"                                          
-# [15] "ep_limeng"                                           "ep_munit"                                           
-# [17] "ep_mobile"                                           "ep_crowd"                                           
-# [19] "ep_groupq"                                           "ep_asian"                                           
-# [21] "ep_aian"                                             "ep_nhpi"                                            
-# [23] "ep_twomore"                                          "ep_otherrace"                                       
-# [25] "density"                                            
+#[1] "cve"                                                           "pct_college"                                                  
+#[3] "pct_foreign_born"                                              "median_income"                                                
+#[5] "pct_uninsured"                                                 "pct_white"                                                    
+#[7] "pct_black"                                                     "ep_unemp"                                                     
+#[9] "ep_hburd"                                                      "ep_age17"                                                     
+#[11] "ep_disabl"                                                     "ep_sngpnt"                                                    
+#[13] "ep_mobile"                                                     "ep_crowd"                                                     
+#[15] "ep_noveh"                                                      "ep_groupq"                                                    
+#[17] "ep_noint"                                                      "ep_asian"                                                     
+#[19] "ep_aian"                                                       "ep_nhpi"                                                      
+#[21] "ep_twomore"                                                    "ep_otherrace"                                                 
+#[23] "hlth_affected_activ_5_days_5_or_more_days"                     "last_smoked_10_years"                                         
+#[25] "routine_checkup_in_the_past_yes"                               "suicide_attempt_no"                                           
+#[27] "ever_had_blood_stool_test_yes_pct_diff"                        "ever_had_hiv_test_yes_pct_diff"                               
+#[29] "flu_shot_in_past_year_yes_pct_diff"                            "frequency_of_smoking_every_day_pct_diff"                      
+#[31] "frequency_of_smoking_not_at_all_pct_diff"                      "hlth_affected_activ_14_days_14_or_more_days_pct_diff"         
+#[33] "last_dentist_visit_5_or_more_years_pct_diff"                   "last_dentist_visit_within_the_past_2_years_pct_diff"          
+#[35] "mammogram_yes_pct_diff"                                        "obese_yes_pct_diff"                                           
+#[37] "overweight_or_obese_yes_pct_diff"                              "pneumonia_shot_18_yes_pct_diff"                               
+#[39] "poor_mental_health_14_days_none_to_less_than_14_days_pct_diff" "skin_cancer_no_pct_diff"                                      
+#[41] "smokeless_tobacco_use_not_at_all_pct_diff"                     "enrollment_log"                                                  
 
 
 print(final_model)
 # Call:  glmnet(x = x, y = y, family = "binomial", alpha = best_row$alpha,      lambda = best_row$lambda) 
-# 
-# Df  %Dev   Lambda
-# 1 25 73.97 0.004224
+#
+#Df  %Dev   Lambda
+#1 42 75.77 0.002934
 
 # CONFUSION MATRIX
 preds <- predict(final_model, newx=testX, type= "class")
@@ -221,35 +233,51 @@ print(c(accuracy, recall, precision))
 df_fore <- broom.mixed::tidy(final_model, effects = "fixed", conf.int = TRUE)
 print(df_fore, n=sum(coef(final_model) != 0))
 
-# A tibble: 26 × 5
-# term                                                 step estimate  lambda dev.ratio
-# <chr>                                               <dbl>    <dbl>   <dbl>     <dbl>
-#   1 (Intercept)                                             1 -1.34    0.00422     0.740
-# 2 cve                                                     1  0.922   0.00422     0.740
-# 3 pct_black                                               1 -0.438   0.00422     0.740
-# 4 pct_uninsured                                           1  0.308   0.00422     0.740
-# 5 pct_college                                             1 -1.63    0.00422     0.740
-# 6 binge_drinking_yes                                      1 -0.561   0.00422     0.740
-# 7 poor_physical_health_14_day_14_or_more_days             1 -0.00596 0.00422     0.740
-# 8 suicide_attempt_no                                      1 -0.271   0.00422     0.740
-# 9 frequency_of_smoking_every_day_pct_diff                 1 -0.773   0.00422     0.740
-# 10 heavy_drinking_no_pct_diff                              1  1.30    0.00422     0.740
-# 11 last_dentist_visit_within_the_past_2_years_pct_diff     1  0.394   0.00422     0.740
-# 12 overweight_or_obese_yes_pct_diff                        1  0.257   0.00422     0.740
-# 13 pneumonia_shot_18_yes_pct_diff                          1  1.89    0.00422     0.740
-# 14 ep_age65                                                1 -2.22    0.00422     0.740
-# 15 ep_sngpnt                                               1 -0.120   0.00422     0.740
-# 16 ep_limeng                                               1 -0.433   0.00422     0.740
-# 17 ep_munit                                                1  3.17    0.00422     0.740
-# 18 ep_mobile                                               1 -0.157   0.00422     0.740
-# 19 ep_crowd                                                1 -0.525   0.00422     0.740
-# 20 ep_groupq                                               1 -0.354   0.00422     0.740
-# 21 ep_asian                                                1 -2.57    0.00422     0.740
-# 22 ep_aian                                                 1 -0.0367  0.00422     0.740
-# 23 ep_nhpi                                                 1 -0.158   0.00422     0.740
-# 24 ep_twomore                                              1  0.0314  0.00422     0.740
-# 25 ep_otherrace                                            1 -0.310   0.00422     0.740
-# 26 density                                                 1 -0.983   0.00422     0.740
+# term                                                           step estimate  lambda dev.ratio
+# <chr>                                                         <dbl>    <dbl>   <dbl>     <dbl>
+#   1 (Intercept)                                                       1  -1.71   0.00293     0.758
+# 2 cve                                                               1   1.00   0.00293     0.758
+# 3 pct_college                                                       1  -1.03   0.00293     0.758
+# 4 pct_foreign_born                                                  1   0.0388 0.00293     0.758
+# 5 median_income                                                     1  -0.225  0.00293     0.758
+# 6 pct_uninsured                                                     1   0.0266 0.00293     0.758
+# 7 pct_white                                                         1  -0.261  0.00293     0.758
+# 8 pct_black                                                         1  -0.915  0.00293     0.758
+# 9 ep_unemp                                                          1  -0.439  0.00293     0.758
+# 10 ep_hburd                                                          1   0.811  0.00293     0.758
+# 11 ep_age17                                                          1   1.20   0.00293     0.758
+# 12 ep_disabl                                                         1   1.02   0.00293     0.758
+# 13 ep_sngpnt                                                         1  -0.316  0.00293     0.758
+# 14 ep_mobile                                                         1  -0.638  0.00293     0.758
+# 15 ep_crowd                                                          1  -0.333  0.00293     0.758
+# 16 ep_noveh                                                          1  -0.363  0.00293     0.758
+# 17 ep_groupq                                                         1   0.361  0.00293     0.758
+# 18 ep_noint                                                          1   0.336  0.00293     0.758
+# 19 ep_asian                                                          1  -2.04   0.00293     0.758
+# 20 ep_aian                                                           1   0.362  0.00293     0.758
+# 21 ep_nhpi                                                           1  -0.433  0.00293     0.758
+# 22 ep_twomore                                                        1   0.600  0.00293     0.758
+# 23 ep_otherrace                                                      1  -0.697  0.00293     0.758
+# 24 hlth_affected_activ_5_days_5_or_more_days                         1  -0.710  0.00293     0.758
+# 25 last_smoked_10_years                                              1   0.769  0.00293     0.758
+# 26 routine_checkup_in_the_past_yes                                   1   0.0163 0.00293     0.758
+# 27 suicide_attempt_no                                                1  -0.509  0.00293     0.758
+# 28 ever_had_blood_stool_test_yes_pct_diff                            1  -0.0401 0.00293     0.758
+# 29 ever_had_hiv_test_yes_pct_diff                                    1  -0.392  0.00293     0.758
+# 30 flu_shot_in_past_year_yes_pct_diff                                1  -0.0727 0.00293     0.758
+# 31 frequency_of_smoking_every_day_pct_diff                           1  -0.288  0.00293     0.758
+# 32 frequency_of_smoking_not_at_all_pct_diff                          1   0.187  0.00293     0.758
+# 33 hlth_affected_activ_14_days_14_or_more_days_pct_diff              1  -0.149  0.00293     0.758
+# 34 last_dentist_visit_5_or_more_years_pct_diff                       1  -0.472  0.00293     0.758
+# 35 last_dentist_visit_within_the_past_2_years_pct_diff               1   0.353  0.00293     0.758
+# 36 mammogram_yes_pct_diff                                            1  -0.561  0.00293     0.758
+# 37 obese_yes_pct_diff                                                1  -0.103  0.00293     0.758
+# 38 overweight_or_obese_yes_pct_diff                                  1   0.770  0.00293     0.758
+# 39 pneumonia_shot_18_yes_pct_diff                                    1   0.600  0.00293     0.758
+# 40 poor_mental_health_14_days_none_to_less_than_14_days_pct_diff     1   0.766  0.00293     0.758
+# 41 skin_cancer_no_pct_diff                                           1   0.562  0.00293     0.758
+# 42 smokeless_tobacco_use_not_at_all_pct_diff                         1  -0.491  0.00293     0.758
+# 43 enrollment_log                                                    1   2.91   0.00293     0.758
 
 saveRDS(final_model, "results/class_GLM_model.rds")
 write_csv(df_fore, "results/class_GLM_estimates.csv")

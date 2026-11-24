@@ -1,4 +1,8 @@
+# SET WORKING DIRECTORY TO THE DIRECTORY WHERE THIS FILE IS STORED.
 rm(list=ls())
+source("1.LoadLibraries.R")
+
+
 test <-read_csv("intermed_regress_data/test_clean.csv")
 train <-read_csv("intermed_regress_data/train_clean.csv")
 folds <-readRDS("intermed_regress_data/folds.rds")

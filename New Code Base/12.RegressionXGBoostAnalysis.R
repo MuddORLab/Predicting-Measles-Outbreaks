@@ -1,4 +1,8 @@
+# SET WORKING DIRECTORY TO THE DIRECTORY WHERE THIS FILE IS STORED.
 rm(list=ls())
+source("1.LoadLibraries.R")
+
+
 test <-read_csv("intermed_regress_data/test_clean.csv")
 #train_balanced <-read_csv("intermed_regress_data/train_balanced.csv")  # SMOTE IS NOT USED.
 train <-read_csv("intermed_regress_data/train_clean.csv")
@@ -97,8 +101,8 @@ for (i in 1:nrow(param_grid_xgb)) {
 print(results_xgb_log)
 
 # FIRST ROW FOR REPRODUCIBILITY:
-#     eta max_depth min_child_weight subsample early_stopping      RMSE       MAE            R2
-# 1   0.01         3                1       0.4             10 0.2940506 0.1621077  0.0553421829
+#     eta max_depth min_child_weight subsample early_stopping      RMSE       MAE           R2
+#1   0.01         3                1       0.4             10 0.2939518 0.1626523  0.054511654
 
 
 
@@ -131,12 +135,11 @@ plot_ly(results_xgb_log, x = ~R2, y = ~RMSE, z = ~MAE,
 
 print(res_xgb)
 
-#   eta   max_depth   min_child_weight subsample early_stopping      RMSE       MAE        R2
-# 5 0.40         9                1       0.9             30 0.2601933 0.1229986 0.2466984
-# 3 0.30         3                1       0.9             10 0.2603764 0.1273998 0.2701164
-# 1 0.20         6                1       0.9             20 0.2526352 0.1297055 0.3192401
-# 2 0.20         9                1       0.9             10 0.2500520 0.1300503 0.3194337
-# 4 0.35         3                4       0.5             30 0.2459714 0.1335015 0.3502361
+# eta max_depth min_child_weight subsample early_stopping      RMSE       MAE        R2
+#1 0.30         9                1       1.0             20 0.2544351 0.1262966 0.2857251
+#3 0.40         3                2       0.7             30 0.2599941 0.1315702 0.2940321
+#4 0.40         3                3       0.8             30 0.2437724 0.1359627 0.3333525
+#2 0.35         3                4       0.5             30 0.2496468 0.1373732 0.3469159
 
 
 # FROM THIS, ETA=0.35, MAX_DEPTH=3, MIN_CHILD_WEIGHT=4, SUBSAMPLE=0.5 AND EARLY_STOPPING=30 SEEM LIKE GOOD CHOICES.
@@ -180,24 +183,24 @@ xgb_r2   <- 1 - sum((y_test_final - pred_xgb)^2) / sum((y_test_final - mean(y_te
 cat("Final XGBoost | RMSE:", round(xgb_rmse,4), "MAE:", round(xgb_mae,4), "R2:", round(xgb_r2,4), "\n")
 
 
-# Final XGBoost | RMSE: 0.3818 MAE: 0.2414 R2: -0.1722 
+# Final XGBoost | RMSE: 0.3617 MAE: 0.196 R2: -0.0522 
 
 print(xgb.importance(model = boost_model_final))
 
 # TOP ELEVEN:
-#                                       Feature         Gain        Cover   Frequency
-#                                       <char>        <num>        <num>       <num>
-#   1:                                pct_college 0.1821883920 0.0636523673 0.053398058
-# 2:                                   ep_age65 0.0803262039 0.1208190494 0.101941748
-# 3:                                   ep_hburd 0.0773968640 0.0574446400 0.053398058
-# 4:                                 enrollment 0.0756406186 0.0299268044 0.038834951
-# 5:                              pct_uninsured 0.0634920125 0.0226072454 0.019417476
-# 6:                                        cve 0.0588418251 0.0506809969 0.048543689
-# 7:                                   ep_age17 0.0541488016 0.0721764106 0.063106796
-# 8:                                  ep_disabl 0.0468472848 0.0622625776 0.067961165
-# 9:                                   ep_munit 0.0457708048 0.0687482628 0.067961165
-# 10:                  served_on_active_duty_yes 0.0373961320 0.0008338738 0.004854369
-# 11:                                  ep_nohsdp 0.0369399852 0.0428981747 0.038834951
+#Feature         Gain       Cover   Frequency
+#<char>        <num>       <num>       <num>
+#  1:                            pct_college 0.2152438610 0.133486922 0.115107914
+#2:                       pct_foreign_born 0.1080562717 0.068437458 0.057553957
+#3:                               ep_age65 0.0730323853 0.080363193 0.057553957
+#4:                          pct_uninsured 0.0577998858 0.046076704 0.035971223
+#5:                               ep_munit 0.0489936268 0.054614446 0.043165468
+#6:                              ep_nohsdp 0.0430358173 0.031711614 0.028776978
+#7:                              ep_disabl 0.0422054144 0.039978317 0.050359712
+#8:                             enrollment 0.0371581325 0.007860144 0.021582734
+#9:                               ep_hburd 0.0367300759 0.021141076 0.021582734
+#10:                                    cve 0.0314284718 0.044721507 0.050359712
+#11:                    asthma_status_never 0.0289540080 0.030491937 0.021582734
 
 
 temp <- xgb.importance(model = boost_model_final)

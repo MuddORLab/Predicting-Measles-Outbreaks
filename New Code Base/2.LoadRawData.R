@@ -1,10 +1,12 @@
+# SET WORKING DIRECTORY TO THE DIRECTORY WHERE THIS FILE IS STORED.
 rm(list=ls())
-source(here::here("New Code Base", "1.LoadLibraries.R"))
+#source(here::here("New Code Base", "1.LoadLibraries.R"))
+source("1.LoadLibraries.R")
 
 #### NEED TO ADD SOME OF THE EARLIER DATA PREPARATION STEPS,
 #### E.G., HOW WAS merged_with_svi.csv CREATED ORIGINALLY?
 # locate proj and load packages 
-here::i_am("New Code Base/2.LoadRawData.R")
+#here::i_am("New Code Base/2.LoadRawData.R")
 
 # unify county names
 clean_county <- function(x) {
@@ -16,14 +18,28 @@ clean_county <- function(x) {
 }
 
 # import data
-outbreak <- read.csv(here("data", "raw", "base", "count.csv")) %>%
+# outbreak <- read.csv(here("data", "raw", "base", "count.csv")) %>%
+#   mutate(County = clean_county(County))
+# cve <- read.csv(here("data", "raw", "base", "CVE.csv")) %>%
+#   mutate(County = clean_county(County))
+# phr_conv <- read.csv(here("data", "raw", "brfss", "phr_conversion.csv"))%>%
+#   rename(phr = 'PHR') %>%
+#   mutate(County = clean_county(County))
+# df <- cve %>% inner_join(outbreak, by = "County", suffix = c("_cve", "_out"))
+
+
+# import data
+outbreak <- read.csv("input_data/count.csv") %>%
   mutate(County = clean_county(County))
-cve <- read.csv(here("data", "raw", "base", "CVE.csv")) %>%
+cve <- read.csv("input_data/CVE.csv") %>%
   mutate(County = clean_county(County))
-phr_conv <- read.csv(here("data", "raw", "brfss", "phr_conversion.csv"))%>%
+phr_conv <- read.csv("input_data/phr_conversion.csv")%>%
   rename(phr = 'PHR') %>%
   mutate(County = clean_county(County))
 df <- cve %>% inner_join(outbreak, by = "County", suffix = c("_cve", "_out"))
+
+
+
 
 # create basic dataset(CVE, outbreak, enrollment, population, phr)
 df2025 <- df %>%
@@ -34,8 +50,8 @@ transmute(
   )
 df2025$cve <- gsub("%", "", df2025$cve)
 df2025$cve <- as.numeric(df2025$cve)
-enrollment <- read.csv(here("data", "raw", "base", "enrollment.csv"))
-population <- read.csv(here("data", "raw", "base", "population.csv")) %>% 
+enrollment <- read.csv("input_data/enrollment.csv")
+population <- read.csv("input_data/population.csv") %>% 
   rename(population = `X2025_pop`) %>%
   mutate(County = clean_county(County))
 enrollment <- enrollment %>%
@@ -43,6 +59,20 @@ enrollment <- enrollment %>%
   mutate(County = clean_county(County)) %>%
   filter(County != "grand total")
 
+
+
+# REQUEST A CENSUS API KEY AT https://www.census.gov/data/developers.html
+# All services, which utilize or access the API, should display the 
+# following notice prominently within the application: "This product uses the 
+# Census Bureau Data API but is not endorsed or certified by the Census Bureau." 
+# You may use the Census Bureau name in order to identify the source of API 
+# content subject to these rules. You may not use the Census Bureau name, 
+# or the like to imply endorsement of any product, service, or entity, 
+# not-for-profit, commercial or otherwise.
+
+
+# Then do the following
+#census_api_key("9b1fdefa60ba67dbb2db0f3d28ba5a359d3e7c6b", install = TRUE)
 
 # County level ACS data
 census_key <- Sys.getenv("CENSUS_API_KEY")
@@ -92,7 +122,7 @@ texas_counties <- get_acs(
     pct_black        = DP05_0097P
   )
 
-svi <- read_csv(here("data", "raw", "svi.csv")) %>%
+svi <- read_csv("input_data/svi.csv") %>%
   mutate(County = clean_county(COUNTY)) %>%
   select(-ST, -STATE, -ST_ABBR, -STCNTY, -COUNTY, -FIPS, -LOCATION, -GeoLevel, -Comparison)
 
@@ -106,15 +136,18 @@ df2025 <- df2025 %>%
   mutate(density = population / AREA_SQMI) %>%
   select(-AREA_SQMI)
 
-write_csv(df2025, here("data", "datasets", "Clustering_Dataset.csv"))
+write_csv(df2025, "intermed_cluster_data/Clustering_Dataset.csv")
 
 # merge with BRFSS data
-brfss <- read_csv(here("data", "raw", "brfss.csv"))
+brfss <- read_csv("input_data/brfss.csv")
+names(brfss) <- gsub("_2024", "",names(brfss))
 
 finaldf <- df2025 |>
   left_join(brfss, by = c("phr" = "PHR"))
 
-write_csv(finaldf, here("data", "datasets", "FullData.csv"))
+# THIS DATA FILE NEVER GETS USED AND FINALDF CONTINUES TO BE
+# MODIFIED BELOW, SO I'M REMOVING THIS
+#write_csv(finaldf, here("data", "datasets", "FullData.csv"))
 
 
 
@@ -213,8 +246,8 @@ stopifnot(sum(is.na(test)) == 0)
 cat("Train rows:", nrow(train), "| Cols:", ncol(train), "\n")
 cat("Test rows:",  nrow(test),  "| Cols:", ncol(test),  "\n")
 
-# Train rows: 187 | Cols: 250 
-# Test rows: 62 | Cols: 250 
+# Train rows: 187 | Cols: 251  # This new data set has median_income
+# Test rows: 62 | Cols: 251 
 
 
 
@@ -232,15 +265,15 @@ folds <- createFolds(train$outbreak , k = 5, list = TRUE)
 
 
 # # Export to csv
-# write_csv(train, "intermed_regress_data/train_clean.csv")
-# write_csv(test,  "intermed_regress_data/test_clean.csv")
-# saveRDS(folds, file = "intermed_regress_data/folds.rds")
-regress_dir <- here::here("New Code Base", "intermed_regress_data")
-dir.create(regress_dir, recursive = TRUE, showWarnings = FALSE)
+ write_csv(train, "intermed_regress_data/train_clean.csv")
+ write_csv(test,  "intermed_regress_data/test_clean.csv")
+ saveRDS(folds, file = "intermed_regress_data/folds.rds")
+#regress_dir <- here::here("New Code Base", "intermed_regress_data")
+#dir.create(regress_dir, recursive = TRUE, showWarnings = FALSE)
 
-write_csv(train, file.path(regress_dir, "train_clean.csv"))
-write_csv(test, file.path(regress_dir, "test_clean.csv"))
-saveRDS(folds, file.path(regress_dir, "folds.rds"))
+#write_csv(train, file.path(regress_dir, "train_clean.csv"))
+#write_csv(test, file.path(regress_dir, "test_clean.csv"))
+#saveRDS(folds, file.path(regress_dir, "folds.rds"))
 
 ########################################
 # CREATE CLASSIFICATION DATA WITH SMOTE
@@ -291,8 +324,8 @@ cat("Train rows:", nrow(trainclass), "| Cols:", ncol(trainclass), "\n")
 cat("Test rows:",  nrow(testclass),  "| Cols:", ncol(testclass),  "\n")
 
 
-# Train rows: 188 | Cols: 250                                                                                        
-# Test rows: 61 | Cols: 250 
+# Train rows: 188 | Cols: 251                                                                                       
+# Test rows: 61 | Cols: 251
 
 ##################
 
@@ -327,13 +360,13 @@ set.seed(4)
 folds_class <- createFolds(trainclass_smote$outbreak, k=10)
 
 # # Export to csv
-# write_csv(trainclass_smote, "intermed_class_data/trainclass_smote.csv")
-# write_csv(testclass,  "intermed_class_data/testclass.csv")
-# saveRDS(folds_class, file = "intermed_class_data/folds_class.rds")
+write_csv(trainclass_smote, "intermed_class_data/trainclass_smote.csv")
+write_csv(testclass,  "intermed_class_data/testclass.csv")
+saveRDS(folds_class, file = "intermed_class_data/folds_class.rds")
 
-class_dir <- here::here("New Code Base", "intermed_class_data")
-dir.create(class_dir, recursive = TRUE, showWarnings = FALSE)
+#class_dir <- here::here("New Code Base", "intermed_class_data")
+#dir.create(class_dir, recursive = TRUE, showWarnings = FALSE)
 
-write_csv(trainclass_smote, file.path(class_dir, "trainclass_smote.csv"))
-write_csv(testclass, file.path(class_dir, "testclass.csv"))
-saveRDS(folds_class, file.path(class_dir, "folds_class.rds"))
+#write_csv(trainclass_smote, file.path(class_dir, "trainclass_smote.csv"))
+#write_csv(testclass, file.path(class_dir, "testclass.csv"))
+#saveRDS(folds_class, file.path(class_dir, "folds_class.rds"))

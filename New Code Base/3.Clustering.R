@@ -1,4 +1,7 @@
+# SET WORKING DIRECTORY TO THE DIRECTORY WHERE THIS FILE IS STORED.
 rm(list=ls())
+source("1.LoadLibraries.R")
+
 df <-read_csv("intermed_cluster_data/Clustering_Dataset.csv")
 County <- df$County
 

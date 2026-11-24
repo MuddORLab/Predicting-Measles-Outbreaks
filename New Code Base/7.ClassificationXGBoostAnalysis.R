@@ -1,4 +1,7 @@
+# SET WORKING DIRECTORY TO THE DIRECTORY WHERE THIS FILE IS STORED.
 rm(list=ls())
+source("1.LoadLibraries.R")
+
 test <-read_csv("intermed_class_data/testclass.csv")
 train <-read_csv("intermed_class_data/trainclass_smote.csv")
 folds <-readRDS("intermed_class_data/folds_class.rds")
@@ -84,8 +87,8 @@ for(i in 1:nrow(param_grid)){
 print(results_xgb)
 
 # First Row:
-#         max_depth  eta cutoff precision precision_std    recall recall_std  accuracy accuracy_std
-# 1           3     0.01    0.2 0.8987960    0.03722862 0.9941176 0.01860163 0.9416654   0.02023112
+#     max_depth  eta cutoff precision precision_std    recall recall_std  accuracy accuracy_std
+#1           3 0.01    0.2 0.8900533    0.04174980 0.9941176 0.01860163 0.9358671   0.02354551
 
 
 p_xgb <- high(precision, df = results_xgb) * high(recall) * high(accuracy)
@@ -133,13 +136,12 @@ score_xgb <- score_pareto(res_xgb$precision, res_xgb$recall, res_xgb$accuracy, r
 res_xgb$score <- score_xgb
 print(res_xgb)
 
-#       max_depth  eta cutoff precision precision_std    recall recall_std  accuracy accuracy_std     score
-# 2         3     0.40    0.2 0.9406089    0.05221518 0.9941176 0.01860163 0.9647746   0.02750661 0.7612348
-# 4         7     0.35    0.2 0.9501892    0.03930362 0.9882353 0.02480218 0.9680621   0.02126964 0.7635356
-# 3         5     0.30    0.4 0.9675095    0.04490848 0.9823529 0.02841446 0.9739496   0.02139147 0.7629159
-# 1         3     0.15    0.5 0.9774510    0.02912594 0.9764706 0.04112976 0.9768908   0.01816306 0.7637166
-
-# FROM THIS, MAX_DEPTH=3 AND ETA=0.15 AND CUTOFF=0.5 SEEM TO BE A GOOD CHOICE.
+#    max_depth  eta cutoff precision precision_std    recall recall_std  accuracy accuracy_std     score
+#2         3 0.25    0.3 0.9560716    0.04210679 0.9941176 0.01860163 0.9738605   0.02115448 0.7689195
+#3         3 0.30    0.4 0.9616271    0.04402362 0.9882353 0.02480218 0.9739445   0.02114170 0.7655880
+#1         3 0.05    0.5 0.9665979    0.03803005 0.9823529 0.02841446 0.9738605   0.01631276 0.7651871
+#4         7 0.10    0.5 0.9724802    0.03820994 0.9705882 0.04999039 0.9711765   0.02333201 0.7545294
+# FROM THIS, MAX_DEPTH=3 AND ETA=0.25 AND CUTOFF=0.3 SEEM TO BE A GOOD CHOICE.
 
 # boos: The algorithm draws a bootstrap sample of the training data in each iteration using the weights for each observation. 
 # Misclassified or harder-to-predict samples receive higher weights, meaning they are 
@@ -147,8 +149,8 @@ print(res_xgb)
 
 # mfinal: number of iterations
 
-# FROM THIS WE CHOOSE MAX_DEPTH = 3; ETA=0.15 AND CUTOFF=0.5
-cutoff = 0.5
+# FROM THIS WE CHOOSE MAX_DEPTH = 3; ETA=0.25 AND CUTOFF=0.3
+cutoff = 0.3
 
 # Prepare matrices for xgb boost
 X_train <- as.matrix(train[, names(train) != "outbreak"])
@@ -167,7 +169,7 @@ boost_model <- xgb.train(
     objective   = "binary:logistic",
     eval_metric = "logloss",
     max_depth   = 3, # WAS 7
-    eta         = 0.15
+    eta         = 0.25
   ),
   data    = dtrain,
   nrounds = 500
@@ -180,8 +182,8 @@ print(boost_table)
 
 #         Predicted
 # Actual  0  1
-# 0       57  1
-# 1       2  1
+# 0       58  0
+# 1       1  2
 
 # Calculate Precision, Accuracy, and recall
 TP <- boost_table[2, 2] # True Positives 
@@ -195,7 +197,7 @@ precision   <- TP / (TP + FP)               # amount of correct positive predict
 
 print(c(accuracy, recall, precision))
 
-#0.9508197 0.3333333 0.5000000
+#0.9836066 0.6666667 1.0000000
 
 # importance graph
 importance_matrix <- xgb.importance(model = boost_model)
@@ -208,17 +210,16 @@ print(importance_matrix)
 # TOP TEN:
 #                                                       Feature         Gain        Cover   Frequency
 #                                                       <char>        <num>        <num>       <num>
-#   1:                              overweight_or_obese_yes_pct_diff 2.713772e-01 0.0981994655 0.010282776
-# 2:                                                    enrollment 1.862800e-01 0.1018587156 0.066838046
-# 3:                                                  ep_otherrace 1.299037e-01 0.1314852843 0.077120823
-# 4:                                                any_cancer_yes 7.252910e-02 0.0270961930 0.003856041
-# 5:                          routine_checkup_within_the_past_year 6.199256e-02 0.0485180905 0.007712082
-# 6:                                                memory_loss_no 4.555132e-02 0.0182807135 0.002570694
-# 7:                                      health_care_coverage_yes 3.723176e-02 0.0286694129 0.006426735
-# 8:                                                       ep_aian 3.293574e-02 0.0651782414 0.047557841
-# 9:                                                       ep_nhpi 1.572289e-02 0.0451675293 0.037275064
-# 10:                                                     pct_black 1.393161e-02 0.0410065281 0.075835476
-
+#1:                                               cvd_no_pct_diff 1.828926e-01 0.0612227970 0.018108652
+#2:                                                    enrollment 1.400564e-01 0.0679971306 0.034205231
+#3:                              overweight_or_obese_yes_pct_diff 1.335874e-01 0.0655047803 0.010060362
+#4:                                                  ep_otherrace 1.241729e-01 0.1352439827 0.078470825
+#5:                                                       ep_aian 6.627630e-02 0.0578147277 0.032193159
+#6:                                                any_cancer_yes 4.647490e-02 0.0264729005 0.004024145
+#7:                                                       ep_nhpi 4.521896e-02 0.0651621390 0.034205231
+#8:                                                      ep_age65 4.517781e-02 0.0376968919 0.036217304
+#9:                                                     pct_black 3.235753e-02 0.0502552365 0.058350101
+#10:                                                       density 2.357479e-02 0.0083786191 0.010060362
 
 print("Boost:")
 # Xgboost 
