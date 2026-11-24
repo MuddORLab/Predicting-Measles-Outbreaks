@@ -72,7 +72,7 @@ enrollment <- enrollment %>%
 
 
 # Then do the following
-#census_api_key("9b1fdefa60ba67dbb2db0f3d28ba5a359d3e7c6b", install = TRUE)
+#census_api_key("PASTEYOURAPIKEYHERE", install = TRUE)
 
 # County level ACS data
 census_key <- Sys.getenv("CENSUS_API_KEY")
