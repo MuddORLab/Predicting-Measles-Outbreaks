@@ -143,6 +143,8 @@ print(best_row)
 #   alpha      lambda  cv_error
 #2   0.1 0.002934465 0.4845936
 
+class_GLM_optparam <- best_row
+
 
 # 6. Fit model with optimal alpha and lambda
 final_model <- glmnet(
@@ -281,6 +283,7 @@ print(df_fore, n=sum(coef(final_model) != 0))
 
 saveRDS(final_model, "results/class_GLM_model.rds")
 write_csv(df_fore, "results/class_GLM_estimates.csv")
+write_csv(class_GLM_optparam, "results/class_GLM_optparam.csv")
 
 
 # ## WORKED REALLY POORLY: NOW DO THE SAME WITH THE FULL MATRIX

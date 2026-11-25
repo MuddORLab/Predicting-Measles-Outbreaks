@@ -116,12 +116,17 @@ print(res_rf)
 #3   40    0.2 0.9937500    0.01976424 0.9283088 0.05473018 0.9621747   0.02748891 0.7386048
 
 # From this, mtry=30 and cutoff=0.4 seems like a good choice.
+c <- res_rf$cutoff[which(res_rf$score == max(res_rf$score))]
+mt <- res_rf$mtry[which(res_rf$score == max(res_rf$score))]
+nt <- 500
+class_rf_optparam <- data.frame(cutoff=c, mtry=mt, ntree=nt)
+print(class_rf_optparam)
 
 
-c = 0.4 #how many trees need to agree  .... was 0.4
+#c = 0.4 #how many trees need to agree  .... was 0.4
 
 set.seed(12345)
-rforest_model <- randomForest(outbreak ~ ., data = train, ntree = 500, mtry = 30, importance = TRUE)
+rforest_model <- randomForest(outbreak ~ ., data = train, ntree = nt, mtry = mt, importance = TRUE)
 
 pred_rf <- predict(rforest_model, newdata = test, type = "class", cutoff=c(c, 1-c))
 rforest_table <- table(Actual = test$outbreak, Predicted = pred_rf)
@@ -198,5 +203,6 @@ write.csv(ordered_imp, "results/class_rf_important_vars.csv", row.names=TRUE)
 write_csv(results_rf, "results/class_rf_paramtune_results.csv")
 write_csv(res_rf, "results/class_rf_best_combos.csv")
 saveRDS(rforest_model, "results/class_rf_model.rds")
+write_csv(class_rf_optparam, "results/class_rf_optparam.csv")
 
 

@@ -106,6 +106,8 @@ print(res)
 #  minsplit minbucket maxdepth      RMSE       MAE         R2
 #1       50        20       30 0.2969915 0.1472333 0.01336778
 
+regress_tree_optparam <- res[which(res$R2==max(res$R2)),]
+print(regress_tree_optparam)
 
 # Regression Tree with best params
 set.seed(100)
@@ -115,14 +117,19 @@ dtree_model_final <- rpart(
   method  = "anova",
   control = rpart.control(
     cp        = -1,
-    maxdepth  = 30, # was showing as 30
-    minsplit  = 50, # was showing as 20
-    minbucket = 20 # was showing as 15
+    maxdepth  = regress_tree_optparam$maxdepth, 
+    minsplit  = regress_tree_optparam$minsplit, 
+    minbucket = regress_tree_optparam$minbucket 
   )
 )
 opt_cp        <- as.numeric(dtree_model_final$cptable[which.min(dtree_model_final$cptable[, "xerror"]), "CP"])[1]
 print(opt_cp)
 # opt_cp=0.01971557
+regress_tree_optparam$opt_cp <- opt_cp
+print(regress_tree_optparam)
+
+# minsplit minbucket maxdepth      RMSE       MAE         R2      opt_cp
+#1       50        20       30 0.2969915 0.1472333 0.01336778 0.001932834
 
 dtree_model_final <- prune(dtree_model_final, cp = opt_cp)
 
@@ -159,6 +166,7 @@ write_csv(importance_df, "results/regress_tree_important_vars.csv")
 saveRDS(dtree_model_final, "results/regress_tree_model.rds")
 write_csv(results_log, "results/regress_tree_paramtune_results.csv")
 write_csv(res, "results/regress_tree_best_combos.csv")
+write_csv(regress_tree_optparam, "results/regress_tree_optparam.csv")
 
 
 # Restore outbreak to its correct values at the end if needed later.

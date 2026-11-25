@@ -107,6 +107,7 @@ for (a in alpha_grid) {
 best_row <- results[which.min(results$cv_error), ]
 print("Optimal Parameters:")
 print(best_row)
+regress_GLM_optparam <- best_row
 
 # [1] "Optimal Parameters:"
 #     alpha   lambda  cv_error
@@ -381,3 +382,4 @@ df_fore_temp <- subset(df_fore, term != "(Intercept)")
 #ggsave("results/regress_GLM_sigvars.pdf", p, width = 9, height = 6)
 saveRDS(final_step_lm, "results/regress_GLM_model.rds")
 write_csv(df_fore, "results/regress_GLM_estimates.csv")
+write_csv(regress_GLM_optparam, "results/regress_GLM_optparam.csv")

@@ -113,15 +113,19 @@ print(res)
 #1    1.7 0.00443038 0.01401009  0.907807     0.0501763 0.9823529 0.03970286 0.9421747    0.0402898 0.7398586
 
 # FROM THIS WE CHOOSE LOSS LAMBDA = 1.7
+lambda <- res$FNloss[which(res$score == max(res$score))]
 
 set.seed(91711)
 # set decision tree
 ctree_model <- rpart(outbreak ~ ., data = train, method = "class", 
-                     parms = list(loss = matrix(c(0, 3.1, 1, 0), nrow = 2)))
+                     parms = list(loss = matrix(c(0, lambda, 1, 0), nrow = 2)))
 opt_cp        <- as.numeric(ctree_model$cptable[which.min(ctree_model$cptable[, "xerror"]), "CP"])[1]
 ctree_model <- prune(ctree_model, cp = opt_cp)
 print(opt_cp)
-# 0.01647727
+# 0.02443182
+
+class_tree_optparam <- data.frame(FNloss=lambda, optCP=opt_cp)
+print(class_tree_optparam)
 
 # eval performance
 pred_dt <- predict(ctree_model, newdata = test, type = "class")
@@ -150,6 +154,12 @@ ctree_model$frame$var <- ifelse(
 
 node_vars <- as.character(ctree_model$frame$var)
 print(node_vars)
+
+# [1] "chg from 2014 in pct of people overweight or obese" "<leaf>"                                            
+#[3] "school enrollments"                                 "<leaf>"                                            
+#[5] "pct of people who are Black"                        "<leaf>"                                            
+#[7] "est pct of people who are Other Race"               "<leaf>"                                            
+#[9] "<leaf>"   
 
 var_colors <- c(
   "overweight_or_obese_yes_pct_diff" = "skyblue",
@@ -235,16 +245,16 @@ print(importance_df)
 
 ## HERE ARE THE TOP TEN:
 #         Variable Importance
-#1    overweight_or_obese_yes_pct_diff 62.9858439
-#2  bmi_3_categories_recommended_range 55.0361743
-#3                  current_smoker_yes 55.0361743
-#4             overweight_or_obese_yes 55.0361743
-#5  bmi_4_categories_recommended_range 53.8131482
-#6  bmi_5_categories_recommended_range 53.8131482
-#7                          enrollment 31.5580529
-#8                          population 26.7029678
-#9                             density 25.0846061
-#10                       ep_otherrace 20.3243649
+#1    overweight_or_obese_yes_pct_diff  72.321250
+#2  bmi_3_categories_recommended_range  63.193325
+#3                  current_smoker_yes  63.193325
+#4             overweight_or_obese_yes  63.193325
+#5  bmi_4_categories_recommended_range  61.789029
+#6  bmi_5_categories_recommended_range  61.789029
+#7                          enrollment  41.048927
+#8                          population  34.733708
+#9                             density  32.628635
+#10                       ep_otherrace  27.386723
 
 # True positives: 
 # Regular classification tree
@@ -277,6 +287,7 @@ write_csv(importance_df, "results/class_tree_important_vars.csv")
 write_csv(res, "results/class_tree_best_combos.csv")
 write_csv(results, "results/class_tree_paramtune_results.csv")
 saveRDS(ctree_model, "results/class_tree_model.rds")
+write_csv(class_tree_optparam, "results/class_tree_optparam.csv")
 
 
 

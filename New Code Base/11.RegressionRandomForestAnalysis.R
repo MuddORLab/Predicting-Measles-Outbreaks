@@ -115,15 +115,18 @@ print(res_rf)
 
 # FROM THIS WE CHOOSE ntree=600, mtry=30, nodesize=5, maxnodes=10
 
+regress_rf_optparam <- res_rf[which(res_rf$R2==max(res_rf$R2)),]
+print(regress_rf_optparam)
+
 # Random Forest with best params 
 set.seed(100)
 rforest_model_final <- randomForest(
   outbreak ~ .,
   data     = train,
-  ntree    = 600, # was showing 700, which doesn't match paper
-  mtry     = 30, # was showing 20
-  nodesize = 5, # was showing 5
-  maxnodes = 10, # was showing 10
+  ntree    = regress_rf_optparam$ntree, 
+  mtry     = regress_rf_optparam$mtry, 
+  nodesize = regress_rf_optparam$nodesize, 
+  maxnodes = regress_rf_optparam$maxnodes, 
   importance = TRUE
 )
 
@@ -161,6 +164,7 @@ saveRDS(rforest_model_final, "results/regress_rf_model.rds")
 write.csv(imp_sorted, "results/regress_rf_important_vars.csv", row.names=FALSE)
 write_csv(results_rf_log, "results/regress_rf_paramtune_results.csv")
 write_csv(res_rf, "results/regress_rf_best_combos.csv")
+write_csv(regress_rf_optparam, "results/regress_rf_optparam.csv")
 
 
 # Restore outbreak to its correct values at the end if needed later.

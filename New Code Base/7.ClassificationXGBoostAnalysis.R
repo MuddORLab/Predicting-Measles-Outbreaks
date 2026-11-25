@@ -142,15 +142,19 @@ print(res_xgb)
 #1         3 0.05    0.5 0.9665979    0.03803005 0.9823529 0.02841446 0.9738605   0.01631276 0.7651871
 #4         7 0.10    0.5 0.9724802    0.03820994 0.9705882 0.04999039 0.9711765   0.02333201 0.7545294
 # FROM THIS, MAX_DEPTH=3 AND ETA=0.25 AND CUTOFF=0.3 SEEM TO BE A GOOD CHOICE.
+md <- res_xgb$max_depth[which(res_xgb$score == max(res_xgb$score))]
+et <- res_xgb$eta[which(res_xgb$score == max(res_xgb$score))]
+cut <- res_xgb$cutoff[which(res_xgb$score == max(res_xgb$score))]
+class_xgb_optparam <- data.frame(max_depth=md, eta = et, cutoff=cut)
+print(class_xgb_optparam)
+#   max_depth  eta cutoff
+#1         3 0.25    0.3
 
 # boos: The algorithm draws a bootstrap sample of the training data in each iteration using the weights for each observation. 
 # Misclassified or harder-to-predict samples receive higher weights, meaning they are 
 # more likely to be selected for the next tree's training data
 
 # mfinal: number of iterations
-
-# FROM THIS WE CHOOSE MAX_DEPTH = 3; ETA=0.25 AND CUTOFF=0.3
-cutoff = 0.3
 
 # Prepare matrices for xgb boost
 X_train <- as.matrix(train[, names(train) != "outbreak"])
@@ -168,14 +172,14 @@ boost_model <- xgb.train(
   params = list(
     objective   = "binary:logistic",
     eval_metric = "logloss",
-    max_depth   = 3, # WAS 7
-    eta         = 0.25
+    max_depth   = md, # WAS 7
+    eta         = et
   ),
   data    = dtrain,
   nrounds = 500
 )
 
-pred_xgb <- as.numeric(predict(boost_model, dtest)>= cutoff)
+pred_xgb <- as.numeric(predict(boost_model, dtest)>= cut)
 
 boost_table <- table(Actual = y_test, Predicted = pred_xgb)
 print(boost_table)
@@ -244,4 +248,5 @@ write.csv(importance_matrix, "results/class_xgb_important_vars.csv", row.names=F
 saveRDS(boost_model, "results/class_xgb_model.rds")
 write_csv(results_xgb, "results/class_xgb_paramtune_results.csv")
 write_csv(res_xgb, "results/class_xgb_best_combos.csv")
+write_csv(class_xgb_optparam, "results/class_xgb_optparam.csv")
 

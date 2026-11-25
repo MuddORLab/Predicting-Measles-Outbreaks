@@ -143,6 +143,14 @@ print(res_xgb)
 
 
 # FROM THIS, ETA=0.35, MAX_DEPTH=3, MIN_CHILD_WEIGHT=4, SUBSAMPLE=0.5 AND EARLY_STOPPING=30 SEEM LIKE GOOD CHOICES.
+
+regress_xgb_optparam <- res_xgb[which(res_xgb$R2==max(res_xgb$R2)),]
+print(regress_xgb_optparam)
+
+#   eta   max_depth min_child_weight subsample early_stopping      RMSE       MAE        R2
+#2 0.35         3                4       0.5             30 0.2496468 0.1373732 0.3469159
+
+
 # XGBoost with best params
 set.seed(100)
 
@@ -157,21 +165,19 @@ dval <- xgb.DMatrix(as.matrix(val[, names(val) != "outbreak"]), label = val$outb
 y_test_final <- log10(test$outbreak + 1)
 dtest_final  <- xgb.DMatrix(as.matrix(test[, names(test) != "outbreak"]), label = y_test_final)
 
-# ETA=0.35, MAX_DEPTH=3, MIN_CHILD_WEIGHT=4, SUBSAMPLE=0.5 AND EARLY_STOPPING=30 SEEM LIKE GOOD CHOICES.
-
 boost_model_final <- xgb.train(
   params = list(
     objective        = "reg:squarederror",
     eval_metric      = "rmse",
-    eta              = 0.35,
-    max_depth        = 3, # was showing 9
-    min_child_weight = 4, # waas showing 1
-    subsample        = 0.5 # was showing 0.8
+    eta              = regress_xgb_optparam$eta,     #0.35,
+    max_depth        = regress_xgb_optparam$max_depth,  # 3, # was showing 9
+    min_child_weight = regress_xgb_optparam$min_child_weight, #4, # waas showing 1
+    subsample        = regress_xgb_optparam$subsample #0.5 # was showing 0.8
   ),
   data    = dtr,                                # train on the 80% subset
   nrounds = 500,
   evals   = list(train = dtr, eval = dval),     # dval LAST; test set is NOT here
-  early_stopping_rounds = 30,
+  early_stopping_rounds = regress_xgb_optparam$early_stopping, #30,
   verbose = 0
 )
 
@@ -211,6 +217,7 @@ write_csv(results_xgb_log, "results/regress_xgb_paramtune_results.csv")
 saveRDS(boost_model_final, "results/regress_xgb_model.rds")
 write.csv(xgb.importance(model = boost_model_final), "results/regress_xgb_important_vars.csv", row.names=FALSE)
 write_csv(res_xgb, "results/regress_xgb_best_combos.csv")
+write_csv(regress_xgb_optparam, "results/regress_xgb_optparam.csv")
 
 
 # Restore outbreak to its correct values at the end if needed later.
